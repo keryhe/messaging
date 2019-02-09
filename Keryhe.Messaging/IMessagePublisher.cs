@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Keryhe.Messaging
 {
-    public interface IMessagePublisher<T>
+    public interface IMessagePublisher<T> : IDisposable
     {
         void Send(T message);
     }

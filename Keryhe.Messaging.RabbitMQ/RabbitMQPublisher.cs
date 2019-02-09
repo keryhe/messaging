@@ -10,7 +10,7 @@ namespace Keryhe.Messaging.RabbitMQ
         private readonly RabbitMQOptions _options;
         private IConnection _connection;
 
-        public RabbitMQPublisher(IOptions<RabbitMQOptions> options)
+        public RabbitMQPublisher(IOptions<RabbitMQPublisherOptions> options)
         {
             _options = options.Value;
             var factory = new ConnectionFactory() { HostName = _options.Host };
@@ -38,6 +38,11 @@ namespace Keryhe.Messaging.RabbitMQ
                     basicProperties: properties,
                     body: body);
             }
+        }
+
+        public void Dispose()
+        {
+            _connection.Close();
         }
 
         private byte[] Serialize(T data)

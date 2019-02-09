@@ -13,7 +13,7 @@ namespace Keryhe.Messaging.RabbitMQ
         private IConnection _connection;
         private IModel _channel;
 
-        public RabbitMQListener(IOptions<RabbitMQOptions> options)
+        public RabbitMQListener(IOptions<RabbitMQListenerOptions> options)
         {
             _options = options.Value;
             var factory = new ConnectionFactory() { HostName = _options.Host };
@@ -50,6 +50,11 @@ namespace Keryhe.Messaging.RabbitMQ
         }
 
         public void Stop()
+        {
+            
+        }
+
+        public void Dispose()
         {
             _connection.Close();
         }

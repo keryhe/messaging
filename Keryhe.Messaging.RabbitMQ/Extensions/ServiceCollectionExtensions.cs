@@ -8,7 +8,7 @@ namespace Keryhe.Messaging.RabbitMQ.Extensions
         public static IServiceCollection AddRabbitMQListener<T>(this IServiceCollection services, IConfiguration config)
         {
             services.AddTransient<IMessageListener<T>, RabbitMQListener<T>>();
-            services.Configure<RabbitMQOptions>(config);
+            services.Configure<RabbitMQListenerOptions>(config);
 
             return services;
         }
@@ -16,7 +16,7 @@ namespace Keryhe.Messaging.RabbitMQ.Extensions
         public static IServiceCollection AddRabbitMQPublisher<T>(this IServiceCollection services, IConfiguration config)
         {
             services.AddTransient<IMessagePublisher<T>, RabbitMQPublisher<T>>();
-            services.Configure<RabbitMQOptions>(config);
+            services.Configure<RabbitMQPublisherOptions>(config);
 
             return services;
         }
