@@ -25,7 +25,7 @@ namespace Keryhe.Messaging.RabbitMQ
         {
         }
 
-        public void Start(Action<T> callback)
+        public virtual void Start(Action<T> callback)
         {
 
             _channel = _connection.CreateModel();
@@ -54,7 +54,7 @@ namespace Keryhe.Messaging.RabbitMQ
 
         }
 
-        public void Stop()
+        public virtual void Stop()
         {
             
         }
