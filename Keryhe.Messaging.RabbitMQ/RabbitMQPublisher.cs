@@ -10,11 +10,16 @@ namespace Keryhe.Messaging.RabbitMQ
         private readonly RabbitMQOptions _options;
         private IConnection _connection;
 
-        public RabbitMQPublisher(IOptions<RabbitMQPublisherOptions> options)
+        public RabbitMQPublisher(RabbitMQPublisherOptions options)
         {
-            _options = options.Value;
+            _options = options;
             var factory = new ConnectionFactory() { HostName = _options.Host };
             _connection = factory.CreateConnection();
+        }
+
+        public RabbitMQPublisher(IOptions<RabbitMQPublisherOptions> options)
+            :this(options.Value)
+        {
         }
 
         public void Send(T message)

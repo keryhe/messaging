@@ -13,11 +13,16 @@ namespace Keryhe.Messaging.RabbitMQ
         private IConnection _connection;
         private IModel _channel;
 
-        public RabbitMQListener(IOptions<RabbitMQListenerOptions> options)
+        public RabbitMQListener(RabbitMQListenerOptions options)
         {
-            _options = options.Value;
+            _options = options;
             var factory = new ConnectionFactory() { HostName = _options.Host };
             _connection = factory.CreateConnection();
+        }
+
+        public RabbitMQListener(IOptions<RabbitMQListenerOptions> options)
+            :this(options.Value)
+        {
         }
 
         public void Start(Action<T> callback)
