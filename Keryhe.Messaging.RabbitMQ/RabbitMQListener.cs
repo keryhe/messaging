@@ -25,9 +25,8 @@ namespace Keryhe.Messaging.RabbitMQ
         {
         }
 
-        public virtual void Start(Action<T> callback)
+        public void Start(Action<T> callback)
         {
-
             _channel = _connection.CreateModel();
 
             _channel.QueueDeclare(
@@ -52,16 +51,26 @@ namespace Keryhe.Messaging.RabbitMQ
                 autoAck: true,
                 consumer: consumer);
 
+            PostStart();
+
         }
 
-        public virtual void Stop()
+        public void Stop()
         {
-            
+            PostStop();
         }
 
         public void Dispose()
         {
-            _connection.Close();
+            _connection.Close();          
+        }
+
+        public virtual void PostStart()
+        {
+        }
+
+        public virtual void PostStop()
+        {
         }
 
         private T Deserialize(byte[] array)
