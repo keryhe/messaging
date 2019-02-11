@@ -4,6 +4,7 @@ using RabbitMQ.Client.Events;
 using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Threading;
 
 namespace Keryhe.Messaging.RabbitMQ
 {
@@ -12,6 +13,7 @@ namespace Keryhe.Messaging.RabbitMQ
         private readonly RabbitMQOptions _options;
         private IConnection _connection;
         private IModel _channel;
+        private ManualResetEvent _resetEvent = new ManualResetEvent(false);
 
         public RabbitMQListener(RabbitMQListenerOptions options)
         {
@@ -51,26 +53,17 @@ namespace Keryhe.Messaging.RabbitMQ
                 autoAck: true,
                 consumer: consumer);
 
-            PostStart();
-
+            _resetEvent.WaitOne();
         }
 
         public void Stop()
         {
-            PostStop();
+            _resetEvent.Set();
         }
 
         public void Dispose()
         {
             _connection.Close();          
-        }
-
-        public virtual void PostStart()
-        {
-        }
-
-        public virtual void PostStop()
-        {
         }
 
         private T Deserialize(byte[] array)
