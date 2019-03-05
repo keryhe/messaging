@@ -13,7 +13,9 @@ namespace Keryhe.Messaging.RabbitMQ
         private readonly RabbitMQOptions _options;
         private IConnection _connection;
         private IModel _channel;
-        private ManualResetEvent _resetEvent = new ManualResetEvent(false);
+
+        private Action<T> _callback;
+        private EventingBasicConsumer _consumer;
 
         public RabbitMQListener(RabbitMQListenerOptions options)
         {
@@ -29,8 +31,9 @@ namespace Keryhe.Messaging.RabbitMQ
 
         public void Start(Action<T> callback)
         {
-            _channel = _connection.CreateModel();
+            _callback = callback;
 
+            _channel = _connection.CreateModel();
             _channel.QueueDeclare(
                 queue: _options.Queue,
                 durable: true,
@@ -40,25 +43,26 @@ namespace Keryhe.Messaging.RabbitMQ
 
             _channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
 
-            var consumer = new EventingBasicConsumer(_channel);
-            consumer.Received += (model, ea) =>
-            {
-                var body = ea.Body;
+            _consumer = new EventingBasicConsumer(_channel);
 
-                T message = Deserialize(body);
-                callback(message);
-            };
+            _consumer.Received += Consumer_Received;
+
             _channel.BasicConsume(
                 queue: _options.Queue,
                 autoAck: true,
-                consumer: consumer);
+                consumer: _consumer);
+        }
 
-            _resetEvent.WaitOne();
+        private void Consumer_Received(object sender, BasicDeliverEventArgs e)
+        {
+            var body = e.Body;
+            T message = Deserialize(body);
+            _callback(message);
         }
 
         public void Stop()
         {
-            _resetEvent.Set();
+            _consumer.Received -= Consumer_Received;
         }
 
         public void Dispose()
