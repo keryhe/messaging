@@ -3,6 +3,8 @@
 A messaging wrapper for sending data from a source to a destination. It currently supports the following transport mechanisms:
 
 - RabbitMQ
+- Events
+- FileSystem
 
 # Keryhe.Messaging
 
@@ -26,6 +28,22 @@ void Send(T message);
 ```
 
 The **Send** method publishes a message to the chosen destination. 
+
+# Keryhe.Messaging.Events
+
+![Keryhe.Messaging.RabbitMQ](https://img.shields.io/nuget/v/Keryhe.Messaging.Events.svg)
+
+An implementation of the IMessageListener and IMessagePublisher interfaces by publishing and subscribing to events.
+
+To use Events as your transport layer, install the [Keryhe.Messaging.Events](https://www.nuget.org/packages/keryhe.messaging.events) package from NuGet.
+
+# Keryhe.Messaging.FileSystem
+
+![Keryhe.Messaging.FileSystem](https://img.shields.io/nuget/v/Keryhe.Messaging.filesystem.svg)
+
+An implementation of the IMessageListener and IMessagePublisher interfaces by storing and reading files. Supports xml and json file types.
+
+To use Events as your transport layer, install the [Keryhe.Messaging.FileSystem](https://www.nuget.org/packages/keryhe.messaging.filesystem) package from NuGet.
 
 # Keryhe.Messaging.RabbitMQ
 

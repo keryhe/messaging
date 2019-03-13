@@ -1,36 +1,40 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Threading;
 
 namespace Keryhe.Messaging.RabbitMQ
 {
     public class RabbitMQListener<T> : IMessageListener<T>
     {
         private readonly RabbitMQOptions _options;
+        private readonly ILogger<RabbitMQListener<T>> _logger;
         private IConnection _connection;
         private IModel _channel;
 
         private Action<T> _callback;
         private EventingBasicConsumer _consumer;
 
-        public RabbitMQListener(RabbitMQListenerOptions options)
+        public RabbitMQListener(RabbitMQListenerOptions options, ILogger<RabbitMQListener<T>> logger)
         {
             _options = options;
+            _logger = logger;
             var factory = new ConnectionFactory() { HostName = _options.Host };
             _connection = factory.CreateConnection();
         }
 
-        public RabbitMQListener(IOptions<RabbitMQListenerOptions> options)
-            :this(options.Value)
+        public RabbitMQListener(IOptions<RabbitMQListenerOptions> options, ILogger<RabbitMQListener<T>> logger)
+            :this(options.Value, logger)
         {
         }
 
         public void Start(Action<T> callback)
         {
+            _logger.LogDebug("RabbitMQListener Started");
+
             _callback = callback;
 
             _channel = _connection.CreateModel();
@@ -62,7 +66,9 @@ namespace Keryhe.Messaging.RabbitMQ
 
         public void Stop()
         {
+            _channel.Close();
             _consumer.Received -= Consumer_Received;
+            _logger.LogDebug("RabbitMQListener Stopped");
         }
 
         public void Dispose()
