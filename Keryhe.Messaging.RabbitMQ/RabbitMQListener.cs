@@ -5,6 +5,8 @@ using RabbitMQ.Client.Events;
 using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Text;
+using Newtonsoft.Json;
 
 namespace Keryhe.Messaging.RabbitMQ
 {
@@ -78,9 +80,9 @@ namespace Keryhe.Messaging.RabbitMQ
 
         private T Deserialize(byte[] array)
         {
-            var stream = new MemoryStream(array);
-            var formatter = new BinaryFormatter();
-            return (T)formatter.Deserialize(stream);
+            string jsonified = Encoding.UTF8.GetString(array);
+            T data = JsonConvert.DeserializeObject<T>(jsonified);
+            return data;
         }
     }
 }
