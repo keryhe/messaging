@@ -43,6 +43,24 @@ To use Events as your transport layer, install the [Keryhe.Messaging.Events](htt
 
 An implementation of the IMessageListener and IMessagePublisher interfaces by storing and reading files. Supports xml and json file types.
 
+**appsettings configuration section**
+
+```json
+"FileSystemListener": 
+{
+    "Folder": "c:\\QueueFolder",
+    "FileType": "Json",
+    "CompletedFolder": "",
+    "Interval": 1
+}
+
+"FileSystemPublisher": 
+{
+    "Folder": "c:\\QueueFolder",
+    "FileType": "Json"
+}
+```
+
 To use Events as your transport layer, install the [Keryhe.Messaging.FileSystem](https://www.nuget.org/packages/keryhe.messaging.filesystem) package from NuGet.
 
 # Keryhe.Messaging.RabbitMQ
@@ -50,5 +68,21 @@ To use Events as your transport layer, install the [Keryhe.Messaging.FileSystem]
 ![Keryhe.Messaging.RabbitMQ](https://img.shields.io/nuget/v/Keryhe.Messaging.RabbitMQ.svg)
 
 A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfaces. Uses the [RabbitMQ.Client](https://www.nuget.org/packages/rabbitmq.client) package.
+
+**appsettings configuration section**
+
+```json
+"RabbitMQListener": 
+{
+    "Host": "localhost",
+    "Queue": "QueueName"
+}
+
+"RabbitMQPublisher": 
+{
+    "Host": "localhost",
+    "Queue": "QueueName"
+}
+```
 
 To use RabbitMQ as your transport layer, install the [Keryhe.Messaging.RabbitMQ](https://www.nuget.org/packages/keryhe.messaging.rabbitmq) package from NuGet.
