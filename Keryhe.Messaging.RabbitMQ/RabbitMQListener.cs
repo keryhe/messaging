@@ -12,7 +12,7 @@ namespace Keryhe.Messaging.RabbitMQ
 {
     public class RabbitMQListener<T> : IMessageListener<T>
     {
-        private readonly RabbitMQOptions _options;
+        private readonly RabbitMQListenerOptions _options;
         private readonly ILogger<RabbitMQListener<T>> _logger;
         private IConnection _connection;
         private IModel _channel;
@@ -42,12 +42,12 @@ namespace Keryhe.Messaging.RabbitMQ
             _channel = _connection.CreateModel();
             _channel.QueueDeclare(
                 queue: _options.Queue,
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
+                durable: _options.Durable,
+                exclusive: _options.Exclusive,
+                autoDelete: _options.AutoDelete,
                 arguments: null);
 
-            _channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+            _channel.BasicQos(_options.BasicQos.PrefetchSize, _options.BasicQos.PrefetchCount, _options.BasicQos.Global);
 
             _consumer = new EventingBasicConsumer(_channel);
 
@@ -55,7 +55,7 @@ namespace Keryhe.Messaging.RabbitMQ
 
             _channel.BasicConsume(
                 queue: _options.Queue,
-                autoAck: true,
+                autoAck: _options.AutoAck,
                 consumer: _consumer);
         }
 

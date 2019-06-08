@@ -7,7 +7,7 @@ namespace Keryhe.Messaging.RabbitMQ
 {
     public class RabbitMQPublisher<T> : IMessagePublisher<T>
     {
-        private readonly RabbitMQOptions _options;
+        private readonly RabbitMQPublisherOptions _options;
         private IConnection _connection;
 
         public RabbitMQPublisher(RabbitMQPublisherOptions options)
@@ -28,14 +28,14 @@ namespace Keryhe.Messaging.RabbitMQ
             {
                 channel.QueueDeclare(
                     queue: _options.Queue,
-                    durable: true,
-                    exclusive: false,
-                    autoDelete: false,
+                    durable: _options.Durable,
+                    exclusive: _options.Exclusive,
+                    autoDelete: _options.AutoDelete,
                     arguments: null);
 
                 var body = Serialize(message);
                 var properties = channel.CreateBasicProperties();
-                properties.Persistent = true;
+                properties.Persistent = _options.Persistent;
 
                 channel.BasicPublish(
                     exchange: "",
