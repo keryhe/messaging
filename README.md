@@ -75,13 +75,27 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
 "RabbitMQListener": 
 {
     "Host": "localhost",
-    "Queue": "QueueName"
+    "Queue": "QueueName",
+    "Durable" : true,
+    "Exclusive" : false,
+    "AutoDelete" : false,
+    "AutoAck" : true,
+    "BasicQos" : 
+    {
+        "PrefetchSize" : 0,
+        "PrefetchCount" : 1,
+        "Global" : false
+    }
 }
 
 "RabbitMQPublisher": 
 {
     "Host": "localhost",
-    "Queue": "QueueName"
+    "Queue": "QueueName",
+    "Durable" : true,
+    "Exclusive" : false,
+    "AutoDelete" : false,
+    "Persistent" : true
 }
 ```
 
