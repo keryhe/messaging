@@ -28,10 +28,7 @@ namespace Keryhe.Messaging.IO
             string ext = "." + _options.FileType;
             string path = Path.Combine(dir, filename, ext);
 
-            using (StreamWriter writer = new StreamWriter(path))
-            {
-                _serializer.Serialize(message, writer);
-            }
+            _serializer.Serialize(message, path);
         }
 
         public void Dispose()

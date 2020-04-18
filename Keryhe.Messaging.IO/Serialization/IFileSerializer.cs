@@ -7,8 +7,8 @@ namespace Keryhe.Messaging.IO.Serialization
 {
     public interface IFileSerializer<T>
     {
-        void Serialize(T src, TextWriter outputStream);
+        void Serialize(T src, string path);
 
-        T Deserialize(TextReader inputStream);
+        T Deserialize(string path);
     }
 }

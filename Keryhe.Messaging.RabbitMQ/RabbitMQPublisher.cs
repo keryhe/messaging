@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
-using Newtonsoft.Json;
 using System.Text;
+using System.Text.Json;
 
 namespace Keryhe.Messaging.RabbitMQ
 {
@@ -52,7 +52,7 @@ namespace Keryhe.Messaging.RabbitMQ
 
         private byte[] Serialize(T data)
         {
-            string jsonified = JsonConvert.SerializeObject(data);
+            string jsonified = JsonSerializer.Serialize<T>(data);
             byte[] databuffer = Encoding.UTF8.GetBytes(jsonified);
             return databuffer;
         }

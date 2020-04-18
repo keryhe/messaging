@@ -6,7 +6,7 @@ using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace Keryhe.Messaging.RabbitMQ
 {
@@ -81,7 +81,7 @@ namespace Keryhe.Messaging.RabbitMQ
         private T Deserialize(byte[] array)
         {
             string jsonified = Encoding.UTF8.GetString(array);
-            T data = JsonConvert.DeserializeObject<T>(jsonified);
+            T data = JsonSerializer.Deserialize<T>(jsonified);
             return data;
         }
     }

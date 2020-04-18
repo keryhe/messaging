@@ -8,18 +8,24 @@ namespace Keryhe.Messaging.IO.Serialization
 {
     public class XmlFileSerializer<T> : IFileSerializer<T>
     {
-        public T Deserialize(TextReader inputStream)
+        public T Deserialize(string path)
         {
-            XmlSerializer xs = new XmlSerializer(typeof(T));
-            T result = (T)xs.Deserialize(inputStream);
-
-            return result;
+            using (FileStream fs = File.OpenRead(path))
+            {
+                XmlSerializer xs = new XmlSerializer(typeof(T));
+                T result = (T)xs.Deserialize(fs);
+                return result;
+            }
         }
 
-        public void Serialize(T src, TextWriter outputStream)
+        public void Serialize(T src, string path)
         {
-            XmlSerializer xs = new XmlSerializer(typeof(T));
-            xs.Serialize(outputStream, src);
+            using (FileStream fs = File.Create(path))
+            {
+                XmlSerializer xs = new XmlSerializer(typeof(T));
+                xs.Serialize(fs, src);
+            }
+                
         }
     }
 }

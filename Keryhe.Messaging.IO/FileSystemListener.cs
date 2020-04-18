@@ -71,12 +71,7 @@ namespace Keryhe.Messaging.IO
 
                 foreach (string file in files)
                 {
-                    T message;
-
-                    using (StreamReader reader = new StreamReader(file))
-                    {
-                        message = _serializer.Deserialize(reader);
-                    }
+                    T message = _serializer.Deserialize(file);
 
                     _callback(message);
 
