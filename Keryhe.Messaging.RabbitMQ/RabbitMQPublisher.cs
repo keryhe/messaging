@@ -2,6 +2,7 @@
 using RabbitMQ.Client;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.RabbitMQ
 {
@@ -13,7 +14,14 @@ namespace Keryhe.Messaging.RabbitMQ
         public RabbitMQPublisher(RabbitMQPublisherOptions options)
         {
             _options = options;
-            var factory = new ConnectionFactory() { HostName = _options.Host };
+            var factory = new ConnectionFactory() 
+            {
+                UserName = _options.Factory.UserName,
+                Password = _options.Factory.Password,
+                VirtualHost = _options.Factory.VirtualHost,
+                HostName = _options.Factory.HostName,
+                Port = _options.Factory.Port
+            };
             _connection = factory.CreateConnection();
         }
 
@@ -22,32 +30,36 @@ namespace Keryhe.Messaging.RabbitMQ
         {
         }
 
-        public void Send(T message)
+        public Task SendAsync(T message)
         {
             using (var channel = _connection.CreateModel())
             {
                 channel.QueueDeclare(
-                    queue: _options.Queue,
-                    durable: _options.Durable,
-                    exclusive: _options.Exclusive,
-                    autoDelete: _options.AutoDelete,
+                    queue: _options.Queue.Name,
+                    durable: _options.Queue.Durable,
+                    exclusive: _options.Queue.Exclusive,
+                    autoDelete: _options.Queue.AutoDelete,
                     arguments: null);
 
                 var body = Serialize(message);
                 var properties = channel.CreateBasicProperties();
                 properties.Persistent = _options.Persistent;
+                properties.ContentType = "application/json";
 
                 channel.BasicPublish(
-                    exchange: "",
-                    routingKey: _options.Queue,
+                    exchange: _options.Exchange.Name,
+                    routingKey: _options.Queue.Name,
                     basicProperties: properties,
                     body: body);
             }
+
+            return Task.CompletedTask;
         }
 
-        public void Dispose()
+        public ValueTask DisposeAsync()
         {
             _connection.Close();
+            return ValueTask.CompletedTask;
         }
 
         private byte[] Serialize(T data)

@@ -2,20 +2,23 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <Description>File system based implementation of the Messaging interfaces</Description>
-    <Authors>Keith Heard</Authors>
-    <Product>Keryhe</Product>
-    <Copyright>Copyright 2022</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/keryhe/messaging</PackageProjectUrl>
-    <PackageTags>Keryhe Messaging IO File</PackageTags>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Version>2.0.0</Version>
+    <Authors>Keith Heard</Authors>
+    <Product>Keryhe</Product>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/keryhe/messaging</PackageProjectUrl>
+    <PackageTags>Keryhe Messaging Amazon AWS SQS</PackageTags>
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
+    <Description>Amazon SQS implementation of the Messaging interfaces</Description>
+    <Copyright>Copyright 2022</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AWSSDK.SQS" Version="3.7.2.81" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="6.0.0" />

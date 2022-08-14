@@ -2,13 +2,14 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.IO.Serialization
 {
     public interface IFileSerializer<T>
     {
-        void Serialize(T src, string path);
+        Task SerializeAsync(T src, string path);
 
-        T Deserialize(string path);
+        Task<T> DeserializeAsync(string path);
     }
 }

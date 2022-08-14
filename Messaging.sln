@@ -1,15 +1,19 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.106
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32505.173
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keryhe.Messaging", "Keryhe.Messaging\Keryhe.Messaging.csproj", "{6987CBED-52D1-40BB-AC4D-FB68CE1ED97A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keryhe.Messaging.RabbitMQ", "Keryhe.Messaging.RabbitMQ\Keryhe.Messaging.RabbitMQ.csproj", "{59F44BF9-2F26-4F70-AA79-0FDC5E9FE746}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keryhe.Messaging.Events", "Keryhe.Messaging.Events\Keryhe.Messaging.Events.csproj", "{2EE2B322-F714-4988-BE77-1522F3B6BB25}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keryhe.Messaging.IO", "Keryhe.Messaging.IO\Keryhe.Messaging.IO.csproj", "{E66AEEB5-74AC-4DF6-8E3F-2150DB56F6C7}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keryhe.Messaging.AWS", "Keryhe.Messaging.AWS\Keryhe.Messaging.AWS.csproj", "{2F9CA1E8-F2C8-40D2-B5CD-F8A345201DAE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keryhe.Messaging.Azure", "Keryhe.Messaging.Azure\Keryhe.Messaging.Azure.csproj", "{EB73099B-C186-417A-A0C6-B3FC68D08104}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Keryhe.Messaging.Polling", "Keryhe.Messaging.Polling\Keryhe.Messaging.Polling.csproj", "{41679D54-BDA1-4A72-AC5B-F3F7329A3DF9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -25,14 +29,22 @@ Global
 		{59F44BF9-2F26-4F70-AA79-0FDC5E9FE746}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{59F44BF9-2F26-4F70-AA79-0FDC5E9FE746}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{59F44BF9-2F26-4F70-AA79-0FDC5E9FE746}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2EE2B322-F714-4988-BE77-1522F3B6BB25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2EE2B322-F714-4988-BE77-1522F3B6BB25}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2EE2B322-F714-4988-BE77-1522F3B6BB25}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2EE2B322-F714-4988-BE77-1522F3B6BB25}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E66AEEB5-74AC-4DF6-8E3F-2150DB56F6C7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E66AEEB5-74AC-4DF6-8E3F-2150DB56F6C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E66AEEB5-74AC-4DF6-8E3F-2150DB56F6C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E66AEEB5-74AC-4DF6-8E3F-2150DB56F6C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F9CA1E8-F2C8-40D2-B5CD-F8A345201DAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F9CA1E8-F2C8-40D2-B5CD-F8A345201DAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F9CA1E8-F2C8-40D2-B5CD-F8A345201DAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F9CA1E8-F2C8-40D2-B5CD-F8A345201DAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB73099B-C186-417A-A0C6-B3FC68D08104}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB73099B-C186-417A-A0C6-B3FC68D08104}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB73099B-C186-417A-A0C6-B3FC68D08104}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB73099B-C186-417A-A0C6-B3FC68D08104}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41679D54-BDA1-4A72-AC5B-F3F7329A3DF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41679D54-BDA1-4A72-AC5B-F3F7329A3DF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41679D54-BDA1-4A72-AC5B-F3F7329A3DF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41679D54-BDA1-4A72-AC5B-F3F7329A3DF9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.IO
 {
@@ -13,8 +14,7 @@ namespace Keryhe.Messaging.IO
         private readonly FileSystemListenerOptions _options;
         private readonly IFileSerializer<T> _serializer;
         private readonly ILogger<FileSystemListener<T>> _logger;
-        private Action<T> _callback;
-
+        private Func<T, Task<bool>> _messageHandler;
 
         private bool _status;
 
@@ -33,6 +33,10 @@ namespace Keryhe.Messaging.IO
             {
                 Directory.CreateDirectory(_options.CompletedFolder);
             }
+            if (!Directory.Exists(_options.ErrorFolder))
+            {
+                Directory.CreateDirectory(_options.ErrorFolder);
+            }
         }
 
 
@@ -41,29 +45,33 @@ namespace Keryhe.Messaging.IO
         {
         }
 
-        public void Start(Action<T> callback)
+        public Task SubscribeAsync(Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken)
         {
-            _logger.LogDebug("FileSystemListener Started");
-            _callback = callback;
+            _messageHandler = messageHandler;
             _status = true;
 
-            Thread t = new Thread(new ThreadStart(Run));
-            t.Start();
+            Task.Run(() => Run(), cancellationToken);
+
+            _logger.LogDebug("FileSystemListener Started");
+            return Task.CompletedTask;
         }
 
-        public void Stop()
+        public Task UnsubscribeAsync(CancellationToken cancellationToken)
         {
             _status = false;
             _resetEvent.Set();
+
             _logger.LogDebug("FileSystemListener Stopped");
+            return Task.CompletedTask;
         }
 
-        public void Dispose()
+        public ValueTask DisposeAsync()
         {
             _resetEvent.Close();
+            return ValueTask.CompletedTask;
         }
 
-        private void Run()
+        private async Task Run()
         {
             while (_status)
             {
@@ -71,18 +79,21 @@ namespace Keryhe.Messaging.IO
 
                 foreach (string file in files)
                 {
-                    T message = _serializer.Deserialize(file);
+                    T message = await _serializer.DeserializeAsync(file);
+                    bool result = await _messageHandler(message);
 
-                    _callback(message);
-
-                    CleanupFile(file);
+                    if (!result)
+                    {
+                        MoveFile(file, _options.ErrorFolder);
+                    }
+                    MoveFile(file, _options.CompletedFolder);
                 }
 
                 _resetEvent.WaitOne(TimeSpan.FromSeconds(_options.Interval));
             }
         }
 
-        private void CleanupFile(string file)
+        private void MoveFile(string file, string destination)
         {
             if (string.IsNullOrEmpty(_options.CompletedFolder))
             {

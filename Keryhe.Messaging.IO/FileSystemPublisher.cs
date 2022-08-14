@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.IO
 {
@@ -21,18 +22,19 @@ namespace Keryhe.Messaging.IO
         {
         }
 
-        public void Send(T message)
+        public async Task SendAsync(T message)
         {
             string dir = _options.Folder;
             string filename = Guid.NewGuid().ToString();
             string ext = "." + _options.FileType;
             string path = Path.Combine(dir, filename, ext);
 
-            _serializer.Serialize(message, path);
+            await _serializer.SerializeAsync(message, path);
         }
 
-        public void Dispose()
+        public ValueTask DisposeAsync()
         {
+            return ValueTask.CompletedTask;
         }
     }
 }

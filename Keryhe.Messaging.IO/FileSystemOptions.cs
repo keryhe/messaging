@@ -13,6 +13,7 @@ namespace Keryhe.Messaging.IO
     public class FileSystemListenerOptions : FileSystemOptions
     {
         public string CompletedFolder { get; set; }
+        public string ErrorFolder { get; set; }
         public int Interval { get; set; }
     }
 

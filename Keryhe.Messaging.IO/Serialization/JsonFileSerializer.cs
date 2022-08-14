@@ -1,25 +1,26 @@
 ﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.IO.Serialization
 {
     public class JsonFileSerializer<T> : IFileSerializer<T>
     {
-        public T Deserialize(string path)
+        public async Task<T> DeserializeAsync(string path)
         {
             using (FileStream fs = File.OpenRead(path))
             {
-                T result = JsonSerializer.DeserializeAsync<T>(fs).Result;
+                T result = await JsonSerializer.DeserializeAsync<T>(fs);
                 return result;
             }
         }
 
-        public void Serialize(T src, string path)
+        public async Task SerializeAsync(T src, string path)
         {
             using (FileStream fs = File.Create(path))
             {
-                JsonSerializer.SerializeAsync(fs, src).Wait();
+                await JsonSerializer.SerializeAsync(fs, src);
             }
         }
     }

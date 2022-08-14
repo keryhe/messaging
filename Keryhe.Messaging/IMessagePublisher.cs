@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Keryhe.Messaging
 {
-    public interface IMessagePublisher<T> : IDisposable
+    public interface IMessagePublisher<T> : IAsyncDisposable
     {
-        void Send(T message);
+        Task SendAsync(T message);
     }
 }
