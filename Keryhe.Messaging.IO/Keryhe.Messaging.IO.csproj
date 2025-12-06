@@ -5,7 +5,7 @@
     <Description>File system based implementation of the Messaging interfaces</Description>
     <Authors>Keith Heard</Authors>
     <Product>Keryhe</Product>
-    <Copyright>Copyright 2022</Copyright>
+    <Copyright>Copyright 2025</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/keryhe/messaging</PackageProjectUrl>
     <PackageTags>Keryhe Messaging IO File</PackageTags>

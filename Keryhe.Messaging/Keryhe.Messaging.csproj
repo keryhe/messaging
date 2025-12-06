@@ -14,7 +14,12 @@
     <AssemblyVersion>3.0.1.0</AssemblyVersion>
     <FileVersion>3.0.1.0</FileVersion>
     <Description>Messaging Interfaces</Description>
-    <Copyright>Copyright 2022</Copyright>
+    <Copyright>Copyright 2025</Copyright>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
 </Project>

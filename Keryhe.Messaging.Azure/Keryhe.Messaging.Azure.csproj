@@ -14,7 +14,7 @@
     <AssemblyVersion>3.0.1.0</AssemblyVersion>
     <FileVersion>3.0.1.0</FileVersion>
     <Description>Azure ServiceBus implementation of the Messaging interfaces</Description>
-    <Copyright>Copyright 2022</Copyright>
+    <Copyright>Copyright 2025</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

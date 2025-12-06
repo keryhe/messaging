@@ -11,8 +11,8 @@ namespace Keryhe.Messaging.RabbitMQ.Extensions
         {
             services.TryAddSingleton<IRabbitMQConnection, RabbitMQConnection>();
             services.AddTransient<IMessageListener<T>, RabbitMQListener<T>>();
-            services.Configure<RabbitMQListenerOptions>(config);
-            services.Configure<RabbitMQFactoryOptions>(config);
+            services.Configure<RabbitMQListenerOptions>(config.GetSection("Keryhe.Messaging.RabbitMQ.RabbitMQFactoryOptions"));
+            services.Configure<RabbitMQFactoryOptions>(config.GetSection("Keryhe.Messaging.RabbitMQ.RabbitMQListenerOptions"));
 
             return services;
         }
@@ -21,8 +21,8 @@ namespace Keryhe.Messaging.RabbitMQ.Extensions
         {
             services.TryAddSingleton<IRabbitMQConnection, RabbitMQConnection>();
             services.AddTransient<IMessagePublisher<T>, RabbitMQPublisher<T>>();
-            services.Configure<RabbitMQPublisherOptions>(config);
-            services.Configure<RabbitMQFactoryOptions>(config);
+            services.Configure<RabbitMQListenerOptions>(config.GetSection("Keryhe.Messaging.RabbitMQ.RabbitMQFactoryOptions"));
+            services.Configure<RabbitMQFactoryOptions>(config.GetSection("Keryhe.Messaging.RabbitMQ.RabbitMQPublisherOptions"));
 
             return services;
         }
