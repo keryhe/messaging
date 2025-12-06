@@ -1,22 +1,8 @@
 ﻿namespace Keryhe.Messaging.RabbitMQ
 {
-    public class RabbitMQOptions
+    public class RabbitMQFactoryOptions
     {
-        public RabbitMQOptions()
-        {
-            Exchange = new ExchangeOptions();
-            Queue = new QueueOptions();
-            Factory = new FactoryOptions();
-        }
-
-        public ExchangeOptions Exchange { get; set; }
-        public QueueOptions Queue { get; set; }
-        public FactoryOptions Factory { get; set; }
-    }
-
-    public class FactoryOptions
-    {
-        public FactoryOptions()
+        public RabbitMQFactoryOptions()
         {
             UserName = "guest";
             Password = "guest";
@@ -30,6 +16,18 @@
         public string VirtualHost { get; set; }
         public string HostName { get; set; }
         public int Port { get; set; }
+    }
+
+    public class RabbitMQOptions
+    {
+        public RabbitMQOptions()
+        {
+            Exchange = new ExchangeOptions();
+            Queue = new QueueOptions();
+        }
+
+        public ExchangeOptions Exchange { get; set; }
+        public QueueOptions Queue { get; set; }
     }
 
     public class ExchangeOptions
@@ -86,9 +84,11 @@
             :base()
         {
             Persistent = true;
+            Mandatory = false;
         }
 
         public bool Persistent { get; set; }
+        public bool Mandatory { get; set; }
     }
 
     public class BasicQosOptions

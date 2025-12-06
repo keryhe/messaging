@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace Keryhe.Messaging.AWS
 {
-    public class SQSListener<T> : IMessageListener<T>
+    public class SQSListener<T> : IMessageListener<T>, IAsyncDisposable
     {
         private readonly SQSListenerOptions _options;
         private readonly ILogger<SQSListener<T>> _logger;

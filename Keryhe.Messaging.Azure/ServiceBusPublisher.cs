@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.Azure
 {
-    public class ServiceBusPublisher<T> : IMessagePublisher<T>
+    public class ServiceBusPublisher<T> : IMessagePublisher<T>, IAsyncDisposable
     {
         private readonly ServiceBusPublisherOptions _options;
         private readonly ServiceBusClient _client;

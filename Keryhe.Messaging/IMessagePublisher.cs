@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Keryhe.Messaging
 {
-    public interface IMessagePublisher<T> : IAsyncDisposable
+    public interface IMessagePublisher<T>
     {
         Task SendAsync(T message);
     }

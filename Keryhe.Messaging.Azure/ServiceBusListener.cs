@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace Keryhe.Messaging.Azure
 {
-    public class ServiceBusListener<T> : IMessageListener<T>
+    public class ServiceBusListener<T> : IMessageListener<T>, IAsyncDisposable
     {
         private readonly ServiceBusListenerOptions _options;
         private readonly ILogger<ServiceBusListener<T>> _logger;

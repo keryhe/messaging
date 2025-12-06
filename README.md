@@ -124,6 +124,14 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
 **appsettings configuration section**
 
 ```json
+"RabbitMQFactory": {
+        "UserName": "",
+        "Password": "",
+        "VirtualHost": "",
+        "HostName": "",
+        "Port": ""
+}
+
 "RabbitMQListener": 
 {
     "Exchange": {
@@ -138,13 +146,6 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
         "Durable": true,
         "Exclusive": false,
         "AutoDelete": false
-    },
-    "Factory": {
-        "UserName": "",
-        "Password": "",
-        "VirtualHost": "",
-        "HostName": "",
-        "Port": ""
     },
     "BasicQos" : 
     {
@@ -169,14 +170,8 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
         "Exclusive": false,
         "AutoDelete": false
     },
-    "Factory": {
-        "UserName": "",
-        "Password": "",
-        "VirtualHost": "",
-        "HostName": "",
-        "Port": ""
-    },
-    "Persistent" : true
+    "Persistent" : true,
+    "Manditory" : false
 }
 ```
 

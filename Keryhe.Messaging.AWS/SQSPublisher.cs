@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.AWS
 {
-    public class SQSPublisher<T> : IMessagePublisher<T>
+    public class SQSPublisher<T> : IMessagePublisher<T>, IAsyncDisposable
     {
         private readonly SQSPublisherOptions _options;
         private readonly AmazonSQSClient _sqsClient;

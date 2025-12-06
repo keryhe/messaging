@@ -31,10 +31,5 @@ namespace Keryhe.Messaging.IO
 
             await _serializer.SerializeAsync(message, path);
         }
-
-        public ValueTask DisposeAsync()
-        {
-            return ValueTask.CompletedTask;
-        }
     }
 }

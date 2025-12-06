@@ -40,11 +40,6 @@ namespace Keryhe.Messaging.Polling
             return Task.CompletedTask;
         }
 
-        public ValueTask DisposeAsync()
-        {
-            return ValueTask.CompletedTask;
-        }
-
         protected abstract Task<T> Poll();
 
         private async Task Run()

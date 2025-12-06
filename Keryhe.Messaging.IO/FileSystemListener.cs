@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.IO
 {
-    public class FileSystemListener<T> : IMessageListener<T>
+    public class FileSystemListener<T> : IMessageListener<T>, IAsyncDisposable
     {
         private static ManualResetEvent _resetEvent = new ManualResetEvent(false);
         private readonly FileSystemListenerOptions _options;
