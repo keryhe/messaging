@@ -56,7 +56,7 @@ namespace Keryhe.Messaging.RabbitMQ
 
         public async Task SubscribeAsync(Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken)
         {
-            if(!string.IsNullOrEmpty(_options.Queue?.Name))
+            if(string.IsNullOrEmpty(_options.Queue?.Name))
             {
                 throw new ArgumentNullException("Queue Name cannot be null");
             }
@@ -101,18 +101,15 @@ namespace Keryhe.Messaging.RabbitMQ
             _consumerReceived = async (sender, ea) =>
             {
                 var parentContext = ExtractTraceContext(ea.BasicProperties);
-                // Start a new activity linked to the parent trace
-                using var activity = _activitySource.StartActivity(
-                    "RabbitMQ Consume",
-                    ActivityKind.Consumer,
-                    parentContext);
-
-                // Add tags for observability
-                activity.SetTag("messaging.system", "rabbitmq");
-                activity.SetTag("messaging.source", ea.Exchange);
-                activity.SetTag("messaging.rabbitmq.routing_key", ea.RoutingKey);
-                activity.SetTag("messaging.message_payload_size_bytes", ea.Body.Length);
-                activity.SetTag("messaging.operation", "consume");
+                using var activity = _activitySource.StartActivity("RabbitMQ Consume", ActivityKind.Consumer, parentContext);
+                if(activity != null)
+                {
+                    activity.SetTag("messaging.system", "rabbitmq");
+                    activity.SetTag("messaging.source", ea.Exchange);
+                    activity.SetTag("messaging.rabbitmq.routing_key", ea.RoutingKey);
+                    activity.SetTag("messaging.message_payload_size_bytes", ea.Body.Length);
+                    activity.SetTag("messaging.operation", "consume");
+                }
 
                 var body = ea.Body;
                 T message = Deserialize(body.ToArray());

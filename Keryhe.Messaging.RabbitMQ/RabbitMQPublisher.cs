@@ -11,7 +11,7 @@ namespace Keryhe.Messaging.RabbitMQ
 {
     public class RabbitMQPublisher<T> : IMessagePublisher<T>
     {
-        private readonly ActivitySource _activitySource = new ("Keryhe.Messaging.RabbitMQ");
+        private static readonly ActivitySource _activitySource = new ("Keryhe.Messaging.RabbitMQ");
         private readonly RabbitMQPublisherOptions _options;
         private readonly ILogger<RabbitMQPublisher<T>> _logger;
 
@@ -50,11 +50,24 @@ namespace Keryhe.Messaging.RabbitMQ
 
         public async Task SendAsync(T message)
         {
-            using var activity = _activitySource.StartActivity("RabbitMQ Publish", ActivityKind.Producer);
-
             _connection ??= await _factory.CreateConnectionAsync();
 
             using var channel = await _connection.CreateChannelAsync();
+            channel.BasicAcksAsync += (sender, ea) =>
+            {
+                _logger.LogDebug("Message {DeliveryTag} ACKED by broker.", ea.DeliveryTag);
+                return Task.CompletedTask;
+            };
+            channel.BasicNacksAsync += (sender, ea) =>
+            {
+                _logger.LogWarning("Message {DeliveryTag} NACKED by broker.", ea.DeliveryTag);
+                return Task.CompletedTask;
+            };
+            channel.BasicReturnAsync += (sender, ea) =>
+            {
+                _logger.LogWarning("Message returned: {Body} with reply code {ReplyCode} and reply text {ReplyText}.", Encoding.UTF8.GetString(ea.Body.ToArray()), ea.ReplyCode, ea.ReplyText);
+                return Task.CompletedTask;
+            };
 
             if (!string.IsNullOrEmpty(_options.Exchange?.Name))
             {
@@ -81,14 +94,17 @@ namespace Keryhe.Messaging.RabbitMQ
                 ContentType = "application/json",
                 Headers = new Dictionary<string, object>()
             };
-
+            
+            using var activity = _activitySource.StartActivity("RabbitMQ Publish", ActivityKind.Producer);
             InjectTraceContext(properties, activity);
-            // Add useful tags to the activity
-            activity.SetTag("messaging.system", "rabbitmq");
-            activity.SetTag("messaging.destination", _options.Exchange?.Name ?? _options.Queue?.Name);
-            activity.SetTag("messaging.destination_kind", string.IsNullOrEmpty(_options.Exchange?.Name) ? "queue" : "exchange");
-            activity.SetTag("messaging.rabbitmq.routing_key", _options.Queue?.Name);
-            activity.SetTag("messaging.message_payload_size_bytes", body.Length);
+            if(activity != null)
+            {
+                activity.SetTag("messaging.system", "rabbitmq");
+                activity.SetTag("messaging.destination", _options.Exchange?.Name ?? _options.Queue?.Name);
+                activity.SetTag("messaging.destination_kind", string.IsNullOrEmpty(_options.Exchange?.Name) ? "queue" : "exchange");
+                activity.SetTag("messaging.rabbitmq.routing_key", _options.Queue?.Name);
+                activity.SetTag("messaging.message_payload_size_bytes", body.Length);
+            }
 
             await channel.BasicPublishAsync(
                 exchange: _options.Exchange.Name,

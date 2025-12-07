@@ -19,7 +19,7 @@ namespace Keryhe.Messaging.RabbitMQ.Extensions
         {
             services.AddOptions();
             services.AddSingleton<IMessagePublisher<T>, RabbitMQPublisher<T>>();
-            services.Configure<RabbitMQListenerOptions>(config);
+            services.Configure<RabbitMQPublisherOptions>(config);
 
             return services;
         }
