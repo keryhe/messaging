@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Version>3.0.1</Version>
+    <Version>3.0.2</Version>
     <Authors>Keith Heard</Authors>
     <Product>Keryhe</Product>
     <Copyright>Copyright 2025</Copyright>
@@ -11,8 +11,8 @@
     <PackageTags>Keryhe Messaging RabbitMQ</PackageTags>
     <Description>RabbitMQ implementation of the Messaging interfaces</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <AssemblyVersion>3.0.1.0</AssemblyVersion>
-    <FileVersion>3.0.1.0</FileVersion>
+    <AssemblyVersion>3.0.2.0</AssemblyVersion>
+    <FileVersion>3.0.2.0</FileVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

@@ -1,5 +1,4 @@
-﻿using Keryhe.Messaging.RabbitMQ.Factory;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -14,25 +13,45 @@ namespace Keryhe.Messaging.RabbitMQ
 {
     public class RabbitMQListener<T> : IMessageListener<T>
     {
-        private readonly ActivitySource _activitySource = new("Keryhe.Messaging.RabbitMQ");
+        private static readonly ActivitySource _activitySource = new("Keryhe.Messaging.RabbitMQ");
         private readonly RabbitMQListenerOptions _options;
         private readonly ILogger<RabbitMQListener<T>> _logger;
-        private IRabbitMQConnection _connection;
+
+        private readonly ConnectionFactory _factory;
+        private IConnection _connection;
         private AsyncEventingBasicConsumer _consumer;
         private AsyncEventHandler<BasicDeliverEventArgs> _consumerReceived;
+
         private Func<T, Task<bool>> _handleMessage;
 
-        public RabbitMQListener(RabbitMQListenerOptions options, IRabbitMQConnection connection, ILogger<RabbitMQListener<T>> logger)
+        public RabbitMQListener(IRabbitMQListenerOptionsProvider optionsProvider, ILogger<RabbitMQListener<T>> logger)
         {
-            _options = options;
-            _connection = connection;
+            _options = optionsProvider.LoadOptions();
             _logger = logger;
-            
+
+            _factory = new ConnectionFactory()
+            {
+                UserName = _options.Factory.UserName,
+                Password = _options.Factory.Password,
+                VirtualHost = _options.Factory.VirtualHost,
+                HostName = _options.Factory.HostName,
+                Port = _options.Factory.Port
+            }; 
         }
 
-        public RabbitMQListener(IOptions<RabbitMQListenerOptions> options, IRabbitMQConnection connection, ILogger<RabbitMQListener<T>> logger)
-            : this(options.Value, connection, logger)
+        public RabbitMQListener(IOptions<RabbitMQListenerOptions> options, ILogger<RabbitMQListener<T>> logger)
         {
+            _options = options.Value;
+            _logger = logger;
+
+            _factory = new ConnectionFactory()
+            {
+                UserName = _options.Factory.UserName,
+                Password = _options.Factory.Password,
+                VirtualHost = _options.Factory.VirtualHost,
+                HostName = _options.Factory.HostName,
+                Port = _options.Factory.Port
+            };
         }
 
         public async Task SubscribeAsync(Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken)
@@ -42,10 +61,11 @@ namespace Keryhe.Messaging.RabbitMQ
                 throw new ArgumentNullException("Queue Name cannot be null");
             }
 
+            _connection ??= await _factory.CreateConnectionAsync();
+
             _handleMessage = messageHandler;
 
-            var connection = await _connection.GetConnectionAsync();
-            using var channel = await connection.CreateChannelAsync();
+            using var channel = await _connection.CreateChannelAsync();
 
             if (!string.IsNullOrEmpty(_options.Exchange?.Name))
             {
@@ -124,20 +144,21 @@ namespace Keryhe.Messaging.RabbitMQ
                 autoAck: _options.AutoAck,
                 consumer: _consumer);
 
-            _logger.LogDebug("RabbitMQListener Started");
+            _logger.LogInformation("RabbitMQListener Started");
         }
 
         public Task UnsubscribeAsync(CancellationToken cancellationToken)
         {
             _consumer.ReceivedAsync -= _consumerReceived;
 
-            _logger.LogDebug("RabbitMQListener Stopped");
+            _logger.LogInformation("RabbitMQListener Stopped");
             return Task.CompletedTask;
         }
 
         private T Deserialize(byte[] array)
         {
             string jsonified = Encoding.UTF8.GetString(array);
+            _logger.LogDebug("Listener received a message: {Message}", jsonified);
             T data = JsonSerializer.Deserialize<T>(jsonified);
             return data;
         }

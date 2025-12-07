@@ -1,21 +1,14 @@
 ﻿namespace Keryhe.Messaging.RabbitMQ
 {
-    public class RabbitMQFactoryOptions
-    {
-        public RabbitMQFactoryOptions()
-        {
-            UserName = "guest";
-            Password = "guest";
-            VirtualHost = "/";
-            HostName = "localhost";
-            Port = 5672;
-        }
 
-        public string UserName { get; set; }
-        public string Password { get; set; }
-        public string VirtualHost { get; set; }
-        public string HostName { get; set; }
-        public int Port { get; set; }
+    public interface IRabbitMQListenerOptionsProvider
+    {
+        RabbitMQListenerOptions LoadOptions();
+    }
+
+    public interface IRabbitMQPublisherOptionsProvider
+    {
+        RabbitMQPublisherOptions LoadOptions();
     }
 
     public class RabbitMQOptions
@@ -28,6 +21,7 @@
 
         public ExchangeOptions Exchange { get; set; }
         public QueueOptions Queue { get; set; }
+        public FactoryOptions Factory { get; set; }
     }
 
     public class ExchangeOptions
@@ -64,6 +58,23 @@
         public bool AutoDelete { get; set; }
     }
 
+    public class FactoryOptions
+    {
+        public FactoryOptions()
+        {
+            UserName = "guest";
+            Password = "guest";
+            VirtualHost = "/";
+            HostName = "localhost";
+            Port = 5672;
+        }
+
+        public string UserName { get; set; }
+        public string Password { get; set; }
+        public string VirtualHost { get; set; }
+        public string HostName { get; set; }
+        public int Port { get; set; }
+    }
 
     public class RabbitMQListenerOptions : RabbitMQOptions
     {

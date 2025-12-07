@@ -1,5 +1,4 @@
-﻿using Keryhe.Messaging.RabbitMQ.Factory;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using System.Collections.Generic;
@@ -14,27 +13,48 @@ namespace Keryhe.Messaging.RabbitMQ
     {
         private readonly ActivitySource _activitySource = new ("Keryhe.Messaging.RabbitMQ");
         private readonly RabbitMQPublisherOptions _options;
-        private readonly IRabbitMQConnection _connection;
         private readonly ILogger<RabbitMQPublisher<T>> _logger;
 
-        public RabbitMQPublisher(RabbitMQPublisherOptions options, IRabbitMQConnection connection, ILogger<RabbitMQPublisher<T>> logger)
+        private readonly ConnectionFactory _factory;
+        private IConnection _connection;  
+
+        public RabbitMQPublisher(IRabbitMQPublisherOptionsProvider optionsProvider, ILogger<RabbitMQPublisher<T>> logger)
         {
-            _options = options;
-            _connection = connection;
+            _options = optionsProvider.LoadOptions();
             _logger = logger;
+
+            _factory = new ConnectionFactory()
+            {
+                UserName = _options.Factory.UserName,
+                Password = _options.Factory.Password,
+                VirtualHost = _options.Factory.VirtualHost,
+                HostName = _options.Factory.HostName,
+                Port = _options.Factory.Port
+            }; 
         }
 
-        public RabbitMQPublisher(IOptions<RabbitMQPublisherOptions> options, IRabbitMQConnection connection, ILogger<RabbitMQPublisher<T>> logger)
-            :this(options.Value, connection, logger)
+        public RabbitMQPublisher(IOptions<RabbitMQPublisherOptions> options, ILogger<RabbitMQPublisher<T>> logger)
         {
+            _options = options.Value;
+            _logger = logger;
+
+            _factory = new ConnectionFactory()
+            {
+                UserName = _options.Factory.UserName,
+                Password = _options.Factory.Password,
+                VirtualHost = _options.Factory.VirtualHost,
+                HostName = _options.Factory.HostName,
+                Port = _options.Factory.Port
+            };
         }
 
         public async Task SendAsync(T message)
         {
             using var activity = _activitySource.StartActivity("RabbitMQ Publish", ActivityKind.Producer);
 
-            var connection = await _connection.GetConnectionAsync();
-            using var channel = await connection.CreateChannelAsync();
+            _connection ??= await _factory.CreateConnectionAsync();
+
+            using var channel = await _connection.CreateChannelAsync();
 
             if (!string.IsNullOrEmpty(_options.Exchange?.Name))
             {
@@ -81,6 +101,7 @@ namespace Keryhe.Messaging.RabbitMQ
         private byte[] Serialize(T data)
         {
             string jsonified = JsonSerializer.Serialize<T>(data);
+            _logger.LogDebug("Publisher sent a message: {Message}", jsonified);
             byte[] databuffer = Encoding.UTF8.GetBytes(jsonified);
             return databuffer;
         }

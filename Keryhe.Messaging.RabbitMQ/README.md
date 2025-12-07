@@ -4,18 +4,20 @@
 
 A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfaces. Uses the [RabbitMQ.Client](https://www.nuget.org/packages/rabbitmq.client) package.
 
+**How to add the RabbitMQListener and RabbitMQPublisher**
+
+```csharp
+using Keryhe.Messaging.RabbitMQ.Extensions;
+
+builder.Services.AddRabbitMQListener<Message>(builder.Configuration.GetSection("RabbitMQListener"));
+
+builder.Services.AddRabbitMQPublisher<Message>(builder.Configuration.GetSection("RabbitMQPublisher"));
+```
+
 **appsettings configuration section**
 
 ```json
-"Keryhe.Messaging.RabbitMQ.RabbitMQFactoryOptions": {
-    "UserName": "",
-    "Password": "",
-    "VirtualHost": "",
-    "HostName": "",
-    "Port": ""
-}
-
-"Keryhe.Messaging.RabbitMQ.RabbitMQListenerOptions": 
+"RabbitMQListener": 
 {
     "Exchange": {
         "Name": "",
@@ -29,6 +31,13 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
         "Durable": true,
         "Exclusive": false,
         "AutoDelete": false
+    },
+    "Factory": {
+        "UserName": "",
+        "Password": "",
+        "VirtualHost": "",
+        "HostName": "",
+        "Port": ""
     },
     "BasicQos" : 
     {
@@ -38,7 +47,7 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
     }
 }
 
-"Keryhe.Messaging.RabbitMQ.RabbitMQPublisherOptions": 
+"RabbitMQPublisher": 
 {
     "Exchange": {
         "Name": "",
@@ -53,9 +62,14 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
         "Exclusive": false,
         "AutoDelete": false
     },
+    "Factory": {
+        "UserName": "",
+        "Password": "",
+        "VirtualHost": "",
+        "HostName": "",
+        "Port": ""
+    }
     "Persistent" : true,
     "Manditory" : false
 }
 ```
-
-To use RabbitMQ as your transport layer, install the [Keryhe.Messaging.RabbitMQ](https://www.nuget.org/packages/keryhe.messaging.rabbitmq) package from NuGet.
