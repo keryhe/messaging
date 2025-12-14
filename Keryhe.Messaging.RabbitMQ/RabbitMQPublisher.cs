@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.RabbitMQ
 {
-    public class RabbitMQPublisher<T> : IMessagePublisher<T>
+    public class RabbitMQPublisher<T> : IMessagePublisher<T>, IAsyncDisposable
     {
         private static readonly ActivitySource _activitySource = new ("Keryhe.Messaging.RabbitMQ");
         private readonly RabbitMQPublisherOptions _options;
@@ -142,6 +143,15 @@ namespace Keryhe.Messaging.RabbitMQ
 
             // Optional: Add correlation ID for easier debugging
             properties.CorrelationId = activity.TraceId.ToString();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if(_connection != null)
+            {
+                await _connection.CloseAsync();
+                await _connection.DisposeAsync();
+            }
         }
     }
 }

@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.RabbitMQ
 {
-    public class RabbitMQListener<T> : IMessageListener<T>
+    public class RabbitMQListener<T> : IMessageListener<T>, IAsyncDisposable
     {
         private static readonly ActivitySource _activitySource = new("Keryhe.Messaging.RabbitMQ");
         private readonly RabbitMQListenerOptions _options;
@@ -19,8 +19,8 @@ namespace Keryhe.Messaging.RabbitMQ
 
         private readonly ConnectionFactory _factory;
         private IConnection _connection;
+        private IChannel _channel;
         private AsyncEventingBasicConsumer _consumer;
-        private AsyncEventHandler<BasicDeliverEventArgs> _consumerReceived;
 
         private Func<T, Task<bool>> _handleMessage;
 
@@ -65,18 +65,18 @@ namespace Keryhe.Messaging.RabbitMQ
 
             _handleMessage = messageHandler;
 
-            using var channel = await _connection.CreateChannelAsync();
+            _channel = await _connection.CreateChannelAsync();
 
             if (!string.IsNullOrEmpty(_options.Exchange?.Name))
             {
-                await channel.ExchangeDeclareAsync(
+                await _channel.ExchangeDeclareAsync(
                     exchange: _options.Exchange.Name,
                     type: _options.Exchange.Type,
                     durable: _options.Exchange.Durable,
                     arguments: null);
             }
 
-            await channel.QueueDeclareAsync(
+            await _channel.QueueDeclareAsync(
                 queue: _options.Queue.Name,
                 durable: _options.Queue.Durable,
                 exclusive: _options.Queue.Exclusive,
@@ -85,58 +85,22 @@ namespace Keryhe.Messaging.RabbitMQ
 
             if (!string.IsNullOrEmpty(_options.Exchange.Name))
             {
-                await channel.QueueBindAsync(
+                await _channel.QueueBindAsync(
                     queue: _options.Queue.Name,
                     exchange: _options.Exchange.Name,
-                    routingKey: _options.Exchange.RoutingKey,
+                    routingKey: _options.Queue.Name,
                     arguments: null);
             }
 
-            await channel.BasicQosAsync(
+            await _channel.BasicQosAsync(
                 prefetchSize: _options.BasicQos.PrefetchSize,
                 prefetchCount: _options.BasicQos.PrefetchCount,
                 global: _options.BasicQos.Global);
 
-            _consumer = new AsyncEventingBasicConsumer(channel);
-            _consumerReceived = async (sender, ea) =>
-            {
-                var parentContext = ExtractTraceContext(ea.BasicProperties);
-                using var activity = _activitySource.StartActivity("RabbitMQ Consume", ActivityKind.Consumer, parentContext);
-                if(activity != null)
-                {
-                    activity.SetTag("messaging.system", "rabbitmq");
-                    activity.SetTag("messaging.source", ea.Exchange);
-                    activity.SetTag("messaging.rabbitmq.routing_key", ea.RoutingKey);
-                    activity.SetTag("messaging.message_payload_size_bytes", ea.Body.Length);
-                    activity.SetTag("messaging.operation", "consume");
-                }
+            _consumer = new AsyncEventingBasicConsumer(_channel);
+            _consumer.ReceivedAsync += ConsumerReceivedAsync;
 
-                var body = ea.Body;
-                T message = Deserialize(body.ToArray());
-                try
-                {
-                    bool success = await _handleMessage(message);
-
-                    if (!_options.AutoAck)
-                    {
-                        if (!success)
-                        {
-                            await channel.BasicNackAsync(ea.DeliveryTag, false, false);
-                        }
-                        await channel.BasicAckAsync(ea.DeliveryTag, false);
-                    }
-                }
-                catch
-                {
-                    if (!_options.AutoAck)
-                    {
-                        await channel.BasicNackAsync(ea.DeliveryTag, false, false);
-                    }
-                }
-            };
-            _consumer.ReceivedAsync += _consumerReceived;
-
-            await channel.BasicConsumeAsync(
+            await _channel.BasicConsumeAsync(
                 queue: _options.Queue.Name,
                 autoAck: _options.AutoAck,
                 consumer: _consumer);
@@ -144,12 +108,57 @@ namespace Keryhe.Messaging.RabbitMQ
             _logger.LogInformation("RabbitMQListener Started");
         }
 
-        public Task UnsubscribeAsync(CancellationToken cancellationToken)
+        public async Task UnsubscribeAsync(CancellationToken cancellationToken)
         {
-            _consumer.ReceivedAsync -= _consumerReceived;
+            _consumer.ReceivedAsync -= ConsumerReceivedAsync;
+
+            if(_channel != null)
+            {
+                await _channel.CloseAsync();
+            }
+            if(_connection != null)
+            {
+                await _connection.CloseAsync();
+            }
 
             _logger.LogInformation("RabbitMQListener Stopped");
-            return Task.CompletedTask;
+        }
+
+        private async Task ConsumerReceivedAsync(object sender, BasicDeliverEventArgs ea)
+        {
+            var parentContext = ExtractTraceContext(ea.BasicProperties);
+            using var activity = _activitySource.StartActivity("RabbitMQ Consume", ActivityKind.Consumer, parentContext);
+            if(activity != null)
+            {
+                activity.SetTag("messaging.system", "rabbitmq");
+                activity.SetTag("messaging.source", ea.Exchange);
+                activity.SetTag("messaging.rabbitmq.routing_key", ea.RoutingKey);
+                activity.SetTag("messaging.message_payload_size_bytes", ea.Body.Length);
+                activity.SetTag("messaging.operation", "consume");
+            }
+
+            var body = ea.Body;
+            T message = Deserialize(body.ToArray());
+            try
+            {
+                bool success = await _handleMessage(message);
+
+                if (!_options.AutoAck)
+                {
+                    if (!success)
+                    {
+                        await _channel.BasicNackAsync(ea.DeliveryTag, false, false);
+                    }
+                    await _channel.BasicAckAsync(ea.DeliveryTag, false);
+                }
+            }
+            catch
+            {
+                if (!_options.AutoAck)
+                {
+                    await _channel.BasicNackAsync(ea.DeliveryTag, false, false);
+                }
+            }
         }
 
         private T Deserialize(byte[] array)
@@ -203,6 +212,18 @@ namespace Keryhe.Messaging.RabbitMQ
             }
 
             return default;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if(_channel != null)
+            {
+                await _channel.DisposeAsync();
+            }
+            if(_connection != null)
+            {
+                await _connection.DisposeAsync();
+            }
         }
     }
 }
