@@ -20,7 +20,9 @@ namespace Keryhe.Messaging.Polling
             _status = false;
         }
 
-        public Task SubscribeAsync(Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken)
+        // A Poller<T> has a single implicit source (its one abstract Poll() method), so
+        // `source` is accepted only for IMessageListener<T> compatibility and otherwise ignored.
+        public Task SubscribeAsync(string source, Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken)
         {
             _messageHandlerAsync = messageHandler;
             _status = true;
@@ -31,7 +33,7 @@ namespace Keryhe.Messaging.Polling
             return Task.CompletedTask;
         }
 
-        public Task UnsubscribeAsync(CancellationToken cancellationToken)
+        public Task UnsubscribeAsync(string source, CancellationToken cancellationToken)
         {
             _status = false;
             _delay.Cancel();

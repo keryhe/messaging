@@ -6,7 +6,7 @@ namespace Keryhe.Messaging
 {
     public interface IMessageListener<T>
     {
-        Task SubscribeAsync(Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken);
-        Task UnsubscribeAsync(CancellationToken cancellationToken);
+        Task SubscribeAsync(string source, Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken);
+        Task UnsubscribeAsync(string source, CancellationToken cancellationToken);
     }
 }

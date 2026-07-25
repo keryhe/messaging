@@ -7,6 +7,6 @@ namespace Keryhe.Messaging
 {
     public interface IMessagePublisher<T>
     {
-        Task SendAsync(T message);
+        Task SendAsync(T message, string destination);
     }
 }

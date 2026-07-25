@@ -13,7 +13,7 @@ namespace Keryhe.Messaging.AWS.Extensions
             return services;
         }
 
-        public static IServiceCollection AddServiceBusPublisher<T>(this IServiceCollection services, IConfiguration config)
+        public static IServiceCollection AddSQSPublisher<T>(this IServiceCollection services, IConfiguration config)
         {
             services.AddTransient<IMessagePublisher<T>, SQSPublisher<T>>();
             services.Configure<SQSPublisherOptions>(config);

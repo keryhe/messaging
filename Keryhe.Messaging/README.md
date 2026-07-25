@@ -7,17 +7,17 @@ There are two interfaces in the messaging namespace, IMessageListener and IMessa
 **IMessageListener** - Listens for messages and calls the provided function when a message is received. This interface also implements IDisposableAsync for cleaning up resources.
 
 ```c#
-Task SubscribeAsync((Func<T, Task<bool>> messageHandler, CancelationToken cancelationToken);
-Task UnsubscribeAsync(CancelationToken cancelationToken);
+Task SubscribeAsync(string source, Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken);
+Task UnsubscribeAsync(string source, CancellationToken cancellationToken);
 ```
 
-Use the **SubscribeAsync** method to start listening for messages. When a message is received, the messagerHandler function called and the message passed to the calling class for processing. **Unsubscribe**, stops listening for messages.
+Call **SubscribeAsync** once per named source you want to listen to; when a message arrives on that source, its handler is invoked. **UnsubscribeAsync(source, token)** stops listening to that source.
 
 **IMessagePublisher** - Publishes a message. This interface also implements IDisposable for cleaning up resources.
 
 ```c#
-void Send(T message);
+Task SendAsync(T message, string destination);
 ```
 
-The **Send** method publishes a message to the chosen destination.
+The **SendAsync** method publishes a message to a specific named destination.
 

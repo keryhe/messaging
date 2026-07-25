@@ -1,5 +1,5 @@
-using Keryhe.Messaging;
-using Microsoft.Extensions.Options;
+using Keryhe.Messaging.Polling;
+using Keryhe.Messaging.Polling.Delay;
 
 namespace MessagingTester
 {
@@ -11,7 +11,13 @@ namespace MessagingTester
                 .ConfigureServices((hostContext, services) =>
                 {
                     services.AddOptions();
-                    
+
+                    services.Configure<FileSystemPollerOptions>(hostContext.Configuration.GetSection("FileSystemPollerOptions"));
+                    services.Configure<ConstantOptions>(hostContext.Configuration.GetSection("ConstantOptions"));
+
+                    services.AddTransient<IDelay, ConstantDelay>();
+                    services.AddTransient<IPoller<List<string>>, FileSystemPoller>();
+
                     services.AddHostedService<Worker>();
                 })
                 .Build();

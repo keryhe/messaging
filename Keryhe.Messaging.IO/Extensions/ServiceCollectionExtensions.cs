@@ -11,16 +11,10 @@ namespace Keryhe.Messaging.IO.Extensions
         {
             services.AddTransient<IMessageListener<T>, FileSystemListener<T>>();
 
-            string fileType =  (string)config.GetValue(typeof(string), "FileType");
-            switch(fileType)
-            {
-                case "json":
-                    services.TryAddTransient<IFileSerializer<T>, JsonFileSerializer<T>>();
-                    break;
-                case "xml":
-                    services.TryAddTransient<IFileSerializer<T>, XmlFileSerializer<T>>();
-                    break;
-            }
+            // Each source picks its own file type, so both serializers are registered
+            // keyed by that type and resolved per-source rather than once at startup.
+            services.TryAddKeyedTransient<IFileSerializer<T>, JsonFileSerializer<T>>("json");
+            services.TryAddKeyedTransient<IFileSerializer<T>, XmlFileSerializer<T>>("xml");
 
             services.Configure<FileSystemListenerOptions>(config);
             return services;
@@ -30,16 +24,10 @@ namespace Keryhe.Messaging.IO.Extensions
         {
             services.AddTransient<IMessagePublisher<T>, FileSystemPublisher<T>>();
 
-            string fileType = (string)config.GetValue(typeof(string), "FileType");
-            switch (fileType)
-            {
-                case "json":
-                    services.TryAddTransient<IFileSerializer<T>, JsonFileSerializer<T>>();
-                    break;
-                case "xml":
-                    services.TryAddTransient<IFileSerializer<T>, XmlFileSerializer<T>>();
-                    break;
-            }
+            // Each destination picks its own file type, so both serializers are registered
+            // keyed by that type and resolved per-send rather than once at startup.
+            services.TryAddKeyedTransient<IFileSerializer<T>, JsonFileSerializer<T>>("json");
+            services.TryAddKeyedTransient<IFileSerializer<T>, XmlFileSerializer<T>>("xml");
 
             services.Configure<FileSystemPublisherOptions>(config);
 

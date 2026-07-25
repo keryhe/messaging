@@ -1,9 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -18,11 +21,9 @@ namespace Keryhe.Messaging.RabbitMQ
         private readonly ILogger<RabbitMQListener<T>> _logger;
 
         private readonly ConnectionFactory _factory;
+        private readonly ConcurrentDictionary<string, (string ConsumerTag, AsyncEventingBasicConsumer Consumer)> _consumers = new();
         private IConnection _connection;
         private IChannel _channel;
-        private AsyncEventingBasicConsumer _consumer;
-
-        private Func<T, Task<bool>> _handleMessage;
 
         public RabbitMQListener(IRabbitMQListenerOptionsProvider optionsProvider, ILogger<RabbitMQListener<T>> logger)
         {
@@ -36,7 +37,7 @@ namespace Keryhe.Messaging.RabbitMQ
                 VirtualHost = _options.Factory.VirtualHost,
                 HostName = _options.Factory.HostName,
                 Port = _options.Factory.Port
-            }; 
+            };
         }
 
         public RabbitMQListener(IOptions<RabbitMQListenerOptions> options, ILogger<RabbitMQListener<T>> logger)
@@ -54,41 +55,41 @@ namespace Keryhe.Messaging.RabbitMQ
             };
         }
 
-        public async Task SubscribeAsync(Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken)
+        public async Task SubscribeAsync(string source, Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken)
         {
-            if(string.IsNullOrEmpty(_options.Queue?.Name))
+            RabbitMQListenerSourceOptions sourceOptions = Resolve(source);
+
+            if(string.IsNullOrEmpty(sourceOptions.Queue?.Name))
             {
                 throw new ArgumentNullException("Queue Name cannot be null");
             }
 
             _connection ??= await _factory.CreateConnectionAsync();
 
-            _handleMessage = messageHandler;
+            _channel ??= await _connection.CreateChannelAsync();
 
-            _channel = await _connection.CreateChannelAsync();
-
-            if (!string.IsNullOrEmpty(_options.Exchange?.Name))
+            if (!string.IsNullOrEmpty(sourceOptions.Exchange?.Name))
             {
                 await _channel.ExchangeDeclareAsync(
-                    exchange: _options.Exchange.Name,
-                    type: _options.Exchange.Type,
-                    durable: _options.Exchange.Durable,
+                    exchange: sourceOptions.Exchange.Name,
+                    type: sourceOptions.Exchange.Type,
+                    durable: sourceOptions.Exchange.Durable,
                     arguments: null);
             }
 
             await _channel.QueueDeclareAsync(
-                queue: _options.Queue.Name,
-                durable: _options.Queue.Durable,
-                exclusive: _options.Queue.Exclusive,
-                autoDelete: _options.Queue.AutoDelete,
+                queue: sourceOptions.Queue.Name,
+                durable: sourceOptions.Queue.Durable,
+                exclusive: sourceOptions.Queue.Exclusive,
+                autoDelete: sourceOptions.Queue.AutoDelete,
                 arguments: null);
 
-            if (!string.IsNullOrEmpty(_options.Exchange.Name))
+            if (!string.IsNullOrEmpty(sourceOptions.Exchange.Name))
             {
                 await _channel.QueueBindAsync(
-                    queue: _options.Queue.Name,
-                    exchange: _options.Exchange.Name,
-                    routingKey: _options.Queue.Name,
+                    queue: sourceOptions.Queue.Name,
+                    exchange: sourceOptions.Exchange.Name,
+                    routingKey: sourceOptions.Queue.Name,
                     arguments: null);
             }
 
@@ -97,53 +98,61 @@ namespace Keryhe.Messaging.RabbitMQ
                 prefetchCount: _options.BasicQos.PrefetchCount,
                 global: _options.BasicQos.Global);
 
-            _consumer = new AsyncEventingBasicConsumer(_channel);
-            _consumer.ReceivedAsync += ConsumerReceivedAsync;
+            var consumer = new AsyncEventingBasicConsumer(_channel);
+            consumer.ReceivedAsync += (sender, ea) => ConsumerReceivedAsync(messageHandler, sourceOptions.AutoAck, sender, ea);
 
-            await _channel.BasicConsumeAsync(
-                queue: _options.Queue.Name,
-                autoAck: _options.AutoAck,
-                consumer: _consumer);
+            string consumerTag = await _channel.BasicConsumeAsync(
+                queue: sourceOptions.Queue.Name,
+                autoAck: sourceOptions.AutoAck,
+                consumer: consumer);
 
-            _logger.LogInformation("RabbitMQListener Started");
+            _consumers[source] = (consumerTag, consumer);
+
+            _logger.LogInformation("RabbitMQListener started for source {Source}", source);
         }
 
-        public async Task UnsubscribeAsync(CancellationToken cancellationToken)
+        public async Task UnsubscribeAsync(string source, CancellationToken cancellationToken)
         {
-            _consumer.ReceivedAsync -= ConsumerReceivedAsync;
+            await StopSourceAsync(source);
 
-            if(_channel != null)
-            {
-                await _channel.CloseAsync();
-            }
-            if(_connection != null)
-            {
-                await _connection.CloseAsync();
-            }
-
-            _logger.LogInformation("RabbitMQListener Stopped");
+            _logger.LogInformation("RabbitMQListener stopped for source {Source}", source);
         }
 
-        private async Task ConsumerReceivedAsync(object sender, BasicDeliverEventArgs ea)
+        private async Task StopSourceAsync(string source)
         {
+            if (_consumers.TryRemove(source, out var entry))
+            {
+                if (_channel != null)
+                {
+                    await _channel.BasicCancelAsync(entry.ConsumerTag);
+                }
+            }
+        }
+
+        private async Task ConsumerReceivedAsync(Func<T, Task<bool>> messageHandler, bool autoAck, object sender, BasicDeliverEventArgs ea)
+        {
+            string destinationName = !string.IsNullOrEmpty(ea.Exchange) ? ea.Exchange : ea.RoutingKey;
+
             var parentContext = ExtractTraceContext(ea.BasicProperties);
-            using var activity = _activitySource.StartActivity("RabbitMQ Consume", ActivityKind.Consumer, parentContext);
+            using var activity = _activitySource.StartActivity($"process {destinationName}", ActivityKind.Consumer, parentContext);
             if(activity != null)
             {
                 activity.SetTag("messaging.system", "rabbitmq");
-                activity.SetTag("messaging.source", ea.Exchange);
+                activity.SetTag("messaging.operation.name", "process");
+                activity.SetTag("messaging.operation.type", "process");
+                activity.SetTag("messaging.destination.name", destinationName);
                 activity.SetTag("messaging.rabbitmq.routing_key", ea.RoutingKey);
-                activity.SetTag("messaging.message_payload_size_bytes", ea.Body.Length);
-                activity.SetTag("messaging.operation", "consume");
+                activity.SetTag("messaging.message.body.size", ea.Body.Length);
+                activity.SetTag("messaging.message.id", ea.BasicProperties?.MessageId);
             }
 
             var body = ea.Body;
             T message = Deserialize(body.ToArray());
             try
             {
-                bool success = await _handleMessage(message);
+                bool success = await messageHandler(message);
 
-                if (!_options.AutoAck)
+                if (!autoAck)
                 {
                     if (!success)
                     {
@@ -154,7 +163,7 @@ namespace Keryhe.Messaging.RabbitMQ
             }
             catch
             {
-                if (!_options.AutoAck)
+                if (!autoAck)
                 {
                     await _channel.BasicNackAsync(ea.DeliveryTag, false, false);
                 }
@@ -167,6 +176,18 @@ namespace Keryhe.Messaging.RabbitMQ
             _logger.LogDebug("Listener received a message: {Message}", jsonified);
             T data = JsonSerializer.Deserialize<T>(jsonified);
             return data;
+        }
+
+        private RabbitMQListenerSourceOptions Resolve(string source)
+        {
+            if (_options.Sources == null || !_options.Sources.TryGetValue(source, out RabbitMQListenerSourceOptions sourceOptions))
+            {
+                throw new KeyNotFoundException(
+                    $"No source named '{source}' is configured. Configured sources: " +
+                    string.Join(", ", _options.Sources?.Keys ?? Enumerable.Empty<string>()));
+            }
+
+            return sourceOptions;
         }
 
         private ActivityContext ExtractTraceContext(IReadOnlyBasicProperties properties)

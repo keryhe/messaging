@@ -2,8 +2,10 @@
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -17,7 +19,9 @@ namespace Keryhe.Messaging.RabbitMQ
         private readonly ILogger<RabbitMQPublisher<T>> _logger;
 
         private readonly ConnectionFactory _factory;
-        private IConnection _connection;  
+        private readonly ConcurrentDictionary<string, bool> _declared = new();
+        private IConnection _connection;
+        private IChannel _channel;
 
         public RabbitMQPublisher(IRabbitMQPublisherOptionsProvider optionsProvider, ILogger<RabbitMQPublisher<T>> logger)
         {
@@ -49,70 +53,101 @@ namespace Keryhe.Messaging.RabbitMQ
             };
         }
 
-        public async Task SendAsync(T message)
+        public async Task SendAsync(T message, string destination)
         {
+            RabbitMQDestinationOptions destinationOptions = Resolve(destination);
+
             _connection ??= await _factory.CreateConnectionAsync();
 
-            using var channel = await _connection.CreateChannelAsync();
-            channel.BasicAcksAsync += (sender, ea) =>
+            if (_channel == null)
             {
-                _logger.LogDebug("Message {DeliveryTag} ACKED by broker.", ea.DeliveryTag);
-                return Task.CompletedTask;
-            };
-            channel.BasicNacksAsync += (sender, ea) =>
-            {
-                _logger.LogWarning("Message {DeliveryTag} NACKED by broker.", ea.DeliveryTag);
-                return Task.CompletedTask;
-            };
-            channel.BasicReturnAsync += (sender, ea) =>
-            {
-                _logger.LogWarning("Message returned: {Body} with reply code {ReplyCode} and reply text {ReplyText}.", Encoding.UTF8.GetString(ea.Body.ToArray()), ea.ReplyCode, ea.ReplyText);
-                return Task.CompletedTask;
-            };
+                _channel = await _connection.CreateChannelAsync();
 
-            if (!string.IsNullOrEmpty(_options.Exchange?.Name))
-            {
-                await channel.ExchangeDeclareAsync(
-                    exchange: _options.Exchange.Name,
-                    type: _options.Exchange.Type,
-                    durable: _options.Exchange.Durable,
-                    arguments: null);
+                _channel.BasicAcksAsync += (sender, ea) =>
+                {
+                    _logger.LogDebug("Message {DeliveryTag} ACKED by broker.", ea.DeliveryTag);
+                    return Task.CompletedTask;
+                };
+                _channel.BasicNacksAsync += (sender, ea) =>
+                {
+                    _logger.LogWarning("Message {DeliveryTag} NACKED by broker.", ea.DeliveryTag);
+                    return Task.CompletedTask;
+                };
+                _channel.BasicReturnAsync += (sender, ea) =>
+                {
+                    _logger.LogWarning("Message returned: {Body} with reply code {ReplyCode} and reply text {ReplyText}.", Encoding.UTF8.GetString(ea.Body.ToArray()), ea.ReplyCode, ea.ReplyText);
+                    return Task.CompletedTask;
+                };
             }
 
-            if(!string.IsNullOrEmpty(_options.Queue?.Name))
+            if (_declared.TryAdd(destination, true))
             {
-                await channel.QueueDeclareAsync(
-                    queue: _options.Queue.Name,
-                    durable: _options.Queue.Durable,
-                    exclusive: _options.Queue.Exclusive,
-                    autoDelete: _options.Queue.AutoDelete,
-                    arguments: null);
+                if (!string.IsNullOrEmpty(destinationOptions.Exchange?.Name))
+                {
+                    await _channel.ExchangeDeclareAsync(
+                        exchange: destinationOptions.Exchange.Name,
+                        type: destinationOptions.Exchange.Type,
+                        durable: destinationOptions.Exchange.Durable,
+                        arguments: null);
+                }
+
+                if (!string.IsNullOrEmpty(destinationOptions.Queue?.Name))
+                {
+                    await _channel.QueueDeclareAsync(
+                        queue: destinationOptions.Queue.Name,
+                        durable: destinationOptions.Queue.Durable,
+                        exclusive: destinationOptions.Queue.Exclusive,
+                        autoDelete: destinationOptions.Queue.AutoDelete,
+                        arguments: null);
+                }
             }
+
+            string routingKey = !string.IsNullOrEmpty(destinationOptions.Exchange?.RoutingKey)
+                ? destinationOptions.Exchange.RoutingKey
+                : destinationOptions.Queue?.Name;
+            string destinationName = destinationOptions.Exchange?.Name ?? destinationOptions.Queue?.Name;
+
             var body = Serialize(message);
             var properties = new BasicProperties
             {
                 Persistent = _options.Persistent,
                 ContentType = "application/json",
-                Headers = new Dictionary<string, object>()
+                Headers = new Dictionary<string, object>(),
+                MessageId = Guid.NewGuid().ToString()
             };
-            
-            using var activity = _activitySource.StartActivity("RabbitMQ Publish", ActivityKind.Producer);
+
+            using var activity = _activitySource.StartActivity($"send {destinationName}", ActivityKind.Producer);
             InjectTraceContext(properties, activity);
             if(activity != null)
             {
                 activity.SetTag("messaging.system", "rabbitmq");
-                activity.SetTag("messaging.destination", _options.Exchange?.Name ?? _options.Queue?.Name);
-                activity.SetTag("messaging.destination_kind", string.IsNullOrEmpty(_options.Exchange?.Name) ? "queue" : "exchange");
-                activity.SetTag("messaging.rabbitmq.routing_key", _options.Queue?.Name);
-                activity.SetTag("messaging.message_payload_size_bytes", body.Length);
+                activity.SetTag("messaging.operation.name", "send");
+                activity.SetTag("messaging.operation.type", "send");
+                activity.SetTag("messaging.destination.name", destinationName);
+                activity.SetTag("messaging.rabbitmq.destination_kind", string.IsNullOrEmpty(destinationOptions.Exchange?.Name) ? "queue" : "exchange");
+                activity.SetTag("messaging.rabbitmq.routing_key", routingKey);
+                activity.SetTag("messaging.message.body.size", body.Length);
+                activity.SetTag("messaging.message.id", properties.MessageId);
             }
 
-            await channel.BasicPublishAsync(
-                exchange: _options.Exchange.Name,
-                routingKey: _options.Queue.Name,
+            await _channel.BasicPublishAsync(
+                exchange: destinationOptions.Exchange.Name,
+                routingKey: routingKey,
                 mandatory: _options.Mandatory,
                 basicProperties: properties,
                 body: body);
+        }
+
+        private RabbitMQDestinationOptions Resolve(string destination)
+        {
+            if (_options.Destinations == null || !_options.Destinations.TryGetValue(destination, out RabbitMQDestinationOptions destinationOptions))
+            {
+                throw new KeyNotFoundException(
+                    $"No destination named '{destination}' is configured. Configured destinations: " +
+                    string.Join(", ", _options.Destinations?.Keys ?? Enumerable.Empty<string>()));
+            }
+
+            return destinationOptions;
         }
 
         private byte[] Serialize(T data)
@@ -147,6 +182,12 @@ namespace Keryhe.Messaging.RabbitMQ
 
         public async ValueTask DisposeAsync()
         {
+            if(_channel != null)
+            {
+                await _channel.CloseAsync();
+                await _channel.DisposeAsync();
+            }
+
             if(_connection != null)
             {
                 await _connection.CloseAsync();

@@ -16,14 +16,14 @@ namespace MessagingTester
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            await _poller.StartAsync(Execute, stoppingToken);
+            await _poller.SubscribeAsync("files", Execute, stoppingToken);
 
         }
 
-        public override Task StopAsync(CancellationToken cancellationToken)
+        public override async Task StopAsync(CancellationToken cancellationToken)
         {
-            _poller.StopAsync(cancellationToken);
-            return base.StopAsync(cancellationToken);
+            await _poller.UnsubscribeAsync("files", cancellationToken);
+            await base.StopAsync(cancellationToken);
         }
 
         private async Task<bool> Execute(List<string> files)

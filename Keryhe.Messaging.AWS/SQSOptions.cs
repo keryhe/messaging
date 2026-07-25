@@ -8,7 +8,6 @@ namespace Keryhe.Messaging.AWS
 {
     public class SQSOptions
     {
-        public string QueueUrl { get; set; }
         public string Region { get; set; }
         public string AccessKey { get; set; }
         public string SecretKey { get; set; }
@@ -16,12 +15,18 @@ namespace Keryhe.Messaging.AWS
 
     public class SQSListenerOptions: SQSOptions
     {
+        public Dictionary<string, SQSSourceOptions> Sources { get; set; }
+    }
+
+    public class SQSSourceOptions
+    {
+        public string QueueUrl { get; set; }
         public int MaxNumberOfMessages { get; set; }
         public int WaitTimeSeconds { get; set; }
     }
 
     public class SQSPublisherOptions: SQSOptions
     {
-
+        public Dictionary<string, string> Destinations { get; set; }
     }
 }

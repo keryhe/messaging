@@ -1,4 +1,6 @@
-﻿namespace Keryhe.Messaging.RabbitMQ
+﻿using System.Collections.Generic;
+
+namespace Keryhe.Messaging.RabbitMQ
 {
 
     public interface IRabbitMQListenerOptionsProvider
@@ -13,14 +15,6 @@
 
     public class RabbitMQOptions
     {
-        public RabbitMQOptions()
-        {
-            Exchange = new ExchangeOptions();
-            Queue = new QueueOptions();
-        }
-
-        public ExchangeOptions Exchange { get; set; }
-        public QueueOptions Queue { get; set; }
         public FactoryOptions Factory { get; set; }
     }
 
@@ -81,12 +75,25 @@
         public RabbitMQListenerOptions()
             : base()
         {
-            AutoAck = true;
             BasicQos = new BasicQosOptions();
         }
 
-        public bool AutoAck { get; set; }
         public BasicQosOptions BasicQos { get; set; }
+        public Dictionary<string, RabbitMQListenerSourceOptions> Sources { get; set; }
+    }
+
+    public class RabbitMQListenerSourceOptions
+    {
+        public RabbitMQListenerSourceOptions()
+        {
+            Exchange = new ExchangeOptions();
+            Queue = new QueueOptions();
+            AutoAck = true;
+        }
+
+        public ExchangeOptions Exchange { get; set; }
+        public QueueOptions Queue { get; set; }
+        public bool AutoAck { get; set; }
     }
 
     public class RabbitMQPublisherOptions : RabbitMQOptions
@@ -100,6 +107,19 @@
 
         public bool Persistent { get; set; }
         public bool Mandatory { get; set; }
+        public Dictionary<string, RabbitMQDestinationOptions> Destinations { get; set; }
+    }
+
+    public class RabbitMQDestinationOptions
+    {
+        public RabbitMQDestinationOptions()
+        {
+            Exchange = new ExchangeOptions();
+            Queue = new QueueOptions();
+        }
+
+        public ExchangeOptions Exchange { get; set; }
+        public QueueOptions Queue { get; set; }
     }
 
     public class BasicQosOptions
