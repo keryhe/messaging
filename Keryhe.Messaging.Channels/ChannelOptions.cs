@@ -5,6 +5,20 @@ namespace Keryhe.Messaging.Channels
 {
     public class ChannelPublisherOptions
     {
+        public ChannelPublisherOptions()
+        {
+            SendTimeoutMilliseconds = 0;
+        }
+
+        /// <summary>
+        /// How long <c>SendAsync</c> waits for room in a full bounded channel before throwing a
+        /// TimeoutException. Zero or less (the default) waits indefinitely, which is the historical
+        /// behaviour — but a bounded channel whose consumer has stopped will then block the
+        /// publisher forever, since SendAsync takes no CancellationToken.
+        /// Ignored for unbounded channels and for any FullMode other than Wait.
+        /// </summary>
+        public int SendTimeoutMilliseconds { get; set; }
+
         public Dictionary<string, ChannelOptions> Destinations { get; set; }
     }
 

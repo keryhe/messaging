@@ -28,10 +28,9 @@ namespace MessagingTester
         {
             string[] files = Directory.GetFiles(_options.Folder, "*." + _options.FileType);
 
-            // Poller<T>.CheckNullOrEmpty only treats null (or an empty string) as "nothing
-            // to do" -- an empty List<string> would count as a message and spin the loop
-            // without ever hitting the delay, so return null when the folder is empty.
-            return Task.FromResult(files.Length == 0 ? null : files.ToList());
+            // An empty list is fine to return: Poller<T>.CheckNullOrEmpty treats an empty
+            // collection as "nothing to do" and waits on the delay.
+            return Task.FromResult(files.ToList());
         }
     }
 

@@ -182,21 +182,21 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
 
 ```json
 "RabbitMQFactory": {
-        "UserName": "",
-        "Password": "",
-        "VirtualHost": "",
-        "HostName": "",
-        "Port": ""
+        "UserName": "guest",
+        "Password": "guest",
+        "VirtualHost": "/",
+        "HostName": "localhost",
+        "Port": 5672
 }
 
 "RabbitMQListener": 
 {
     "Factory": {
-        "UserName": "",
-        "Password": "",
-        "VirtualHost": "",
-        "HostName": "",
-        "Port": ""
+        "UserName": "guest",
+        "Password": "guest",
+        "VirtualHost": "/",
+        "HostName": "localhost",
+        "Port": 5672
     },
     "BasicQos" : 
     {
@@ -221,11 +221,11 @@ A RabbitMQ implementation of the IMessageListener and IMessagePublisher interfac
 "RabbitMQPublisher": 
 {
     "Factory": {
-        "UserName": "",
-        "Password": "",
-        "VirtualHost": "",
-        "HostName": "",
-        "Port": ""
+        "UserName": "guest",
+        "Password": "guest",
+        "VirtualHost": "/",
+        "HostName": "localhost",
+        "Port": 5672
     },
     "Persistent" : true,
     "Mandatory" : false,

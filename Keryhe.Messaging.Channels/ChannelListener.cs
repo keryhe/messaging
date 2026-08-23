@@ -15,10 +15,17 @@ namespace Keryhe.Messaging.Channels
     public class ChannelListener<T> : IMessageListener<T>, IAsyncDisposable
     {
         private static readonly ActivitySource _activitySource = new("Keryhe.Messaging.Channels");
-        private readonly ChannelListenerOptions _options;
+        private readonly IOptionsMonitor<ChannelListenerOptions> _optionsMonitor;
+        private readonly IDisposable _changeToken;
+
+        private ChannelListenerOptions _options;
         private readonly IChannelRegistry<T> _registry;
         private readonly ILogger<ChannelListener<T>> _logger;
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellations = new();
+
+        // Serializes subscribe against unsubscribe. Stopping the previous reader first only avoids
+        // a leak if no second subscribe can interleave between the stop and the dictionary write.
+        private readonly object _subscribeGate = new();
 
         public ChannelListener(ChannelListenerOptions options, IServiceProvider serviceProvider, ILogger<ChannelListener<T>> logger)
         {
@@ -32,15 +39,41 @@ namespace Keryhe.Messaging.Channels
         {
         }
 
+        public ChannelListener(IOptionsMonitor<ChannelListenerOptions> options, IServiceProvider serviceProvider, ILogger<ChannelListener<T>> logger)
+            : this(options.CurrentValue, serviceProvider, logger)
+        {
+            _optionsMonitor = options;
+
+            // Channels are in-process, singleton-registry-backed resources with no "reconnect"
+            // concept, so OnChange only swaps _options for sources declared after the change —
+            // existing channels/consumers are intentionally left untouched (see ChannelRegistry).
+            _changeToken = _optionsMonitor.OnChange(updated =>
+            {
+                Interlocked.Exchange(ref _options, updated);
+            });
+        }
+
         public Task SubscribeAsync(string source, Func<T, Task<bool>> messageHandler, CancellationToken cancellationToken)
         {
             ChannelOptions shape = Resolve(source);
             Channel<ChannelEnvelope<T>> channel = _registry.GetOrCreate(source, shape);
 
-            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _cancellations[source] = linkedCts;
+            lock (_subscribeGate)
+            {
+                // Subscribing a source twice would otherwise leave the first reader running and
+                // unreachable, competing with the second for the same channel.
+                StopSource(source);
 
-            Task.Run(() => Run(source, channel, messageHandler, linkedCts.Token), linkedCts.Token);
+                var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                _cancellations[source] = linkedCts;
+
+                Task.Run(() => Run(source, channel, messageHandler, linkedCts.Token), linkedCts.Token)
+                    .ContinueWith(
+                        t => _logger.LogError(t.Exception, "ChannelListener read loop for source {Source} faulted and has stopped", source),
+                        CancellationToken.None,
+                        TaskContinuationOptions.OnlyOnFaulted,
+                        TaskScheduler.Default);
+            }
 
             _logger.LogDebug("ChannelListener started for source {Source}", source);
             return Task.CompletedTask;
@@ -48,7 +81,10 @@ namespace Keryhe.Messaging.Channels
 
         public Task UnsubscribeAsync(string source, CancellationToken cancellationToken)
         {
-            StopSource(source);
+            lock (_subscribeGate)
+            {
+                StopSource(source);
+            }
 
             _logger.LogDebug("ChannelListener stopped for source {Source}", source);
             return Task.CompletedTask;
@@ -65,9 +101,14 @@ namespace Keryhe.Messaging.Channels
 
         public ValueTask DisposeAsync()
         {
-            foreach (string source in _cancellations.Keys.ToList())
+            _changeToken?.Dispose();
+
+            lock (_subscribeGate)
             {
-                StopSource(source);
+                foreach (string source in _cancellations.Keys.ToList())
+                {
+                    StopSource(source);
+                }
             }
 
             return ValueTask.CompletedTask;
@@ -79,7 +120,19 @@ namespace Keryhe.Messaging.Channels
             {
                 await foreach (ChannelEnvelope<T> envelope in channel.Reader.ReadAllAsync(cancellationToken))
                 {
-                    await ProcessAsync(source, envelope, messageHandler);
+                    try
+                    {
+                        await ProcessAsync(source, envelope, messageHandler);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        // One throwing handler must not end consumption for the process lifetime.
+                        _logger.LogError(ex, "ChannelListener handler threw for message {MessageId} on source {Source}", envelope?.MessageId, source);
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -89,7 +142,7 @@ namespace Keryhe.Messaging.Channels
 
         private async Task ProcessAsync(string source, ChannelEnvelope<T> envelope, Func<T, Task<bool>> messageHandler)
         {
-            var parentContext = ExtractTraceContext(envelope);
+            var parentContext = ExtractTraceContext(envelope, source);
             using var activity = _activitySource.StartActivity($"process {source}", ActivityKind.Consumer, parentContext);
             if(activity != null)
             {
@@ -100,10 +153,18 @@ namespace Keryhe.Messaging.Channels
                 activity.SetTag("messaging.message.id", envelope.MessageId);
             }
 
-            await messageHandler(envelope.Payload);
+            bool success = await messageHandler(envelope.Payload);
+
+            if (!success)
+            {
+                // An in-process channel has no redelivery mechanism, so there is nothing to retry
+                // against — but the signal must not vanish silently.
+                _logger.LogWarning("ChannelListener handler returned false for message {MessageId} on source {Source}; the message is dropped, as channels have no redelivery",
+                    envelope.MessageId, source);
+            }
         }
 
-        private ActivityContext ExtractTraceContext(ChannelEnvelope<T> envelope)
+        private ActivityContext ExtractTraceContext(ChannelEnvelope<T> envelope, string source)
         {
             if (string.IsNullOrEmpty(envelope?.TraceParent))
                 return default;
@@ -112,11 +173,21 @@ namespace Keryhe.Messaging.Channels
             if (parts.Length != 4)
                 return default;
 
-            var traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
-            var spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
-            var traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+            try
+            {
+                var traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
+                var spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
+                var traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
 
-            return new ActivityContext(traceId, spanId, traceFlags, envelope.TraceState);
+                return new ActivityContext(traceId, spanId, traceFlags, envelope.TraceState);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // Unreachable while ChannelPublisher is the only writer, but the cost of being
+                // wrong about that is a message lost to a telemetry detail.
+                _logger.LogWarning("ChannelListener could not parse the trace parent '{TraceParent}' on source {Source}; processing the message without a parent trace context", envelope.TraceParent, source);
+                return default;
+            }
         }
 
         private ChannelOptions Resolve(string source)

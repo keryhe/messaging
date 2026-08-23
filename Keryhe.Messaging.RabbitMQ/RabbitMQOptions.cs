@@ -2,19 +2,17 @@
 
 namespace Keryhe.Messaging.RabbitMQ
 {
-
-    public interface IRabbitMQListenerOptionsProvider
-    {
-        RabbitMQListenerOptions LoadOptions();
-    }
-
-    public interface IRabbitMQPublisherOptionsProvider
-    {
-        RabbitMQPublisherOptions LoadOptions();
-    }
-
     public class RabbitMQOptions
     {
+        public RabbitMQOptions()
+        {
+            // Every other nested options object is default-instantiated by its parent. Leaving this
+            // one null means a configuration without a "Factory" section — including the
+            // AddRabbitMQListener/AddRabbitMQPublisher overloads that take no IConfiguration —
+            // throws a NullReferenceException from the constructor.
+            Factory = new FactoryOptions();
+        }
+
         public FactoryOptions Factory { get; set; }
     }
 
@@ -103,10 +101,26 @@ namespace Keryhe.Messaging.RabbitMQ
         {
             Persistent = true;
             Mandatory = false;
+            PublisherConfirms = false;
+            ConfirmTimeoutMilliseconds = 5000;
         }
 
         public bool Persistent { get; set; }
         public bool Mandatory { get; set; }
+
+        /// <summary>
+        /// When true, SendAsync waits for the broker to confirm the message and throws if the
+        /// broker nacks or returns it. When false (the default) SendAsync completes as soon as the
+        /// frame is written to the socket, so a rejected or undelivered message looks like success.
+        /// </summary>
+        public bool PublisherConfirms { get; set; }
+
+        /// <summary>
+        /// How long SendAsync waits for a broker confirmation before throwing a TimeoutException.
+        /// Zero or less waits indefinitely. Ignored unless PublisherConfirms is true. Note that
+        /// publishes are serialized, so a silent broker blocks other publishers for this long.
+        /// </summary>
+        public int ConfirmTimeoutMilliseconds { get; set; }
         public Dictionary<string, RabbitMQDestinationOptions> Destinations { get; set; }
     }
 

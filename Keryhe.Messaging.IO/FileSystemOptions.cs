@@ -11,6 +11,13 @@ namespace Keryhe.Messaging.IO
 
     public class FileSystemListenerSourceOptions
     {
+        public FileSystemListenerSourceOptions()
+        {
+            // Left at the int default of 0, Task.Delay(TimeSpan.Zero) is a completed task, so the
+            // scan loop never throttles at all — the same failure as S7 and G5, on a third provider.
+            Interval = 5;
+        }
+
         public string Folder { get; set; }
         public string FileType { get; set; }
         public string CompletedFolder { get; set; }

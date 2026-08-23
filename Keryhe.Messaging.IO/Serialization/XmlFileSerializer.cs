@@ -9,26 +9,35 @@ namespace Keryhe.Messaging.IO.Serialization
 {
     public class XmlFileSerializer<T> : IFileSerializer<T>
     {
-        public Task<T> DeserializeAsync(string path)
+        // XmlSerializer has no asynchronous API, so it runs against a MemoryStream and only the
+        // file I/O — the part that actually blocks — is awaited. Both methods were previously
+        // synchronous behind an async signature, blocking the caller's thread on disk.
+        public async Task<T> DeserializeAsync(string path)
         {
+            using MemoryStream buffer = new MemoryStream();
+
             using (FileStream fs = File.OpenRead(path))
             {
-                XmlSerializer xs = new XmlSerializer(typeof(T));
-                T result = (T)xs.Deserialize(fs);
-
-                return Task.FromResult(result);
+                await fs.CopyToAsync(buffer);
             }
+
+            buffer.Position = 0;
+
+            XmlSerializer xs = new XmlSerializer(typeof(T));
+            return (T)xs.Deserialize(buffer);
         }
 
-        public Task SerializeAsync(T src, string path)
+        public async Task SerializeAsync(T src, string path)
         {
-            using (FileStream fs = File.Create(path))
-            {
-                XmlSerializer xs = new XmlSerializer(typeof(T));
-                xs.Serialize(fs, src);
+            using MemoryStream buffer = new MemoryStream();
 
-                return Task.CompletedTask;
-            }
+            XmlSerializer xs = new XmlSerializer(typeof(T));
+            xs.Serialize(buffer, src);
+
+            buffer.Position = 0;
+
+            using FileStream fs = File.Create(path);
+            await buffer.CopyToAsync(fs);
         }
     }
 }

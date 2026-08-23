@@ -9,10 +9,13 @@ using System.Threading.Tasks;
 
 namespace Keryhe.Messaging.Channels
 {
-    public class ChannelPublisher<T> : IMessagePublisher<T>
+    public class ChannelPublisher<T> : IMessagePublisher<T>, IAsyncDisposable
     {
         private static readonly ActivitySource _activitySource = new("Keryhe.Messaging.Channels");
-        private readonly ChannelPublisherOptions _options;
+        private readonly IOptionsMonitor<ChannelPublisherOptions> _optionsMonitor;
+        private readonly IDisposable _changeToken;
+
+        private ChannelPublisherOptions _options;
         private readonly IChannelRegistry<T> _registry;
 
         public ChannelPublisher(ChannelPublisherOptions options, IServiceProvider serviceProvider)
@@ -26,9 +29,26 @@ namespace Keryhe.Messaging.Channels
         {
         }
 
+        public ChannelPublisher(IOptionsMonitor<ChannelPublisherOptions> options, IServiceProvider serviceProvider)
+            : this(options.CurrentValue, serviceProvider)
+        {
+            _optionsMonitor = options;
+
+            // Channels are in-process, singleton-registry-backed resources with no "reconnect"
+            // concept, so OnChange only swaps _options for destinations declared after the change.
+            _changeToken = _optionsMonitor.OnChange(updated =>
+            {
+                Interlocked.Exchange(ref _options, updated);
+            });
+        }
+
         public async Task SendAsync(T message, string destination)
         {
-            ChannelOptions shape = Resolve(destination);
+            // Snapshot once: an options change between these reads would otherwise mix old and
+            // new configuration within a single send.
+            ChannelPublisherOptions options = _options;
+
+            ChannelOptions shape = Resolve(options, destination);
             Channel<ChannelEnvelope<T>> channel = _registry.GetOrCreate(destination, shape);
 
             using var activity = _activitySource.StartActivity($"send {destination}", ActivityKind.Producer);
@@ -50,19 +70,45 @@ namespace Keryhe.Messaging.Channels
                 TraceState = activity == null || string.IsNullOrEmpty(activity.TraceStateString) ? null : activity.TraceStateString
             };
 
-            await channel.Writer.WriteAsync(envelope);
+            int timeout = options.SendTimeoutMilliseconds;
+
+            if (timeout <= 0)
+            {
+                await channel.Writer.WriteAsync(envelope);
+                return;
+            }
+
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(timeout));
+
+            try
+            {
+                await channel.Writer.WriteAsync(envelope, timeoutCts.Token);
+            }
+            catch (OperationCanceledException ex) when (timeoutCts.IsCancellationRequested)
+            {
+                throw new TimeoutException(
+                    $"The channel for destination '{destination}' did not accept message {messageId} within {timeout}ms. " +
+                    "A bounded channel stays full while nothing is reading it.",
+                    ex);
+            }
         }
 
-        private ChannelOptions Resolve(string destination)
+        private static ChannelOptions Resolve(ChannelPublisherOptions options, string destination)
         {
-            if (_options.Destinations == null || !_options.Destinations.TryGetValue(destination, out ChannelOptions shape))
+            if (options.Destinations == null || !options.Destinations.TryGetValue(destination, out ChannelOptions shape))
             {
                 throw new KeyNotFoundException(
                     $"No destination named '{destination}' is configured. Configured destinations: " +
-                    string.Join(", ", _options.Destinations?.Keys ?? Enumerable.Empty<string>()));
+                    string.Join(", ", options.Destinations?.Keys ?? Enumerable.Empty<string>()));
             }
 
             return shape;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            _changeToken?.Dispose();
+            return ValueTask.CompletedTask;
         }
     }
 }

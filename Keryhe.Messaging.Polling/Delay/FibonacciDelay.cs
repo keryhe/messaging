@@ -7,7 +7,7 @@ namespace Keryhe.Messaging.Polling.Delay
 {
     public class FibonacciDelay : IDelay, IDisposable
     {
-        private ManualResetEvent _resetEvent = new ManualResetEvent(false);
+        private readonly ManualResetEvent _resetEvent = new ManualResetEvent(false);
         private readonly ILogger<FibonacciDelay> _logger;
         private readonly int _maxWait;
         private int _previousWait;
@@ -29,12 +29,19 @@ namespace Keryhe.Messaging.Polling.Delay
         public void Wait()
         {
             _logger.LogDebug("Waiting " + _wait + " seconds");
-            _resetEvent.WaitOne(TimeSpan.FromSeconds(_wait));
+
+            // Floor at one second so a zero or negative interval cannot spin the caller's loop.
+            _resetEvent.WaitOne(TimeSpan.FromSeconds(Math.Max(1, _wait)));
+
+            // Re-arm, or a single Cancel leaves the event signalled forever and every later Wait
+            // returns instantly — turning the poll loop into a spin.
+            _resetEvent.Reset();
 
             if (_wait < _maxWait)
             {
                 int currentWait = _wait;
-                _wait = _previousWait + currentWait;
+                // Clamp, so the final step lands on MaxWait rather than past it.
+                _wait = Math.Min(_previousWait + currentWait, _maxWait);
                 _previousWait = currentWait;
             }
         }
@@ -60,6 +67,12 @@ namespace Keryhe.Messaging.Polling.Delay
 
     public class FibonacciOptions
     {
+        public FibonacciOptions()
+        {
+            // Left at the int default of 0 the backoff never grows past its initial second.
+            MaxWait = 60;
+        }
+
         public int MaxWait { get; set; }
     }
 }

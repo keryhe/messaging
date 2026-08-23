@@ -61,6 +61,25 @@ configuration for that same name differs, its settings are silently ignored (the
 exists) and a warning is logged noting the mismatch. Configure both sides identically for a given
 name to avoid relying on call order.
 
+**Unbounded means unbounded**: with `Capacity` unset, a channel grows in memory for as long as it
+is written to. A broker holds a backlog on disk and tells you about it; an in-process channel holds
+it in your heap and does not. Nothing drains a channel whose listener has stopped, or one that was
+never subscribed to at all — messages accumulate until the process runs out of memory. **Set
+`Capacity` on any channel whose producer can outpace its consumer**, and pick a `FullMode` that
+matches what should happen when it fills.
+
+`FullMode: "Wait"` (the default) gives real backpressure, but `SendAsync` has no `CancellationToken`,
+so a full channel with a stopped consumer blocks the publisher indefinitely. Set
+`SendTimeoutMilliseconds` on the publisher to bound that wait — `SendAsync` then throws
+`TimeoutException` instead of hanging. It defaults to `0`, meaning wait forever.
+
+**No redelivery**: an in-process channel has no broker behind it, so there is nothing to retry
+against. A handler returning `false` logs a warning naming the message id, and the message is
+dropped — unlike RabbitMQ (nacked), SQS (visibility reset) or Service Bus (abandoned), where the
+message comes back. The same applies to a handler that throws: the exception is logged and
+consumption continues with the next message. If a message matters, do not rely on the channel to
+give you another chance at it.
+
 To use in-process channels as your transport layer, install the
 [Keryhe.Messaging.Channels](https://www.nuget.org/packages/keryhe.messaging.channels) package from
 NuGet.
